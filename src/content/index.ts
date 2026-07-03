@@ -2,4 +2,5 @@
 // Plain objects only — no logic.
 export * from './items'
 export * from './maps'
+export * from './resourceNodes'
 export * from './types'

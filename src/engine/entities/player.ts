@@ -2,9 +2,11 @@ import type { EquipmentSlot } from '../../content/types'
 import type { EventBus } from '../core/eventBus'
 import type { Game } from '../core/game'
 import { Equipment } from '../systems/equipment'
+import { GatherAction, validateGather } from '../systems/gathering'
 import { Inventory } from '../systems/inventory'
 import { Skills } from '../systems/skills'
-import { findPath } from '../world/pathfinding'
+import { findPath, findPathAdjacent } from '../world/pathfinding'
+import type { ResourceNode } from '../world/resourceNode'
 import type { World } from '../world/tileMap'
 import type { Vec2 } from '../world/vec2'
 
@@ -107,6 +109,27 @@ export class Player {
   /** Clear the movement queue. Does not cancel the current action. */
   stop(): void {
     this.path = []
+  }
+
+  /**
+   * Start gathering from a resource node. Validates up front (emitting
+   * `actionFailed` with the reason on failure), then queues a walk to a
+   * tile adjacent (Chebyshev 1) to the node and sets a GatherAction. The
+   * action only ticks once movement completes, so walking then gathering
+   * needs no extra state. Returns false when validation fails or no
+   * adjacent tile is reachable (unreachable emits no event).
+   */
+  gather(node: ResourceNode): boolean {
+    const reason = validateGather(this, node)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    const path = findPathAdjacent(this.world, this.position, node.position)
+    if (path === null) return false
+    this.path = path
+    this._action = new GatherAction(node)
+    return true
   }
 
   /**

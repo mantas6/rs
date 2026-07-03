@@ -1,5 +1,6 @@
 import type { MapDef } from '../../content/types'
 import { Player } from '../entities/player'
+import { getResourceNodeDef, ResourceNode } from '../world/resourceNode'
 import { World } from '../world/tileMap'
 import type { Vec2 } from '../world/vec2'
 import { EventBus } from './eventBus'
@@ -14,9 +15,18 @@ export const TICK_MS = 600
 /** Boosted/drained stats move 1 point toward base this often (1 minute). */
 export const STAT_RESTORE_INTERVAL_TICKS = 100
 
+/** Placement of a resource node on the map, resolved by def id. */
+export interface NodePlacement {
+  defId: string
+  x: number
+  y: number
+}
+
 export interface GameConfig {
   seed: number
   map: MapDef
+  /** Resource nodes to place at startup (also addable via world.addNode). */
+  nodes?: NodePlacement[]
 }
 
 /**
@@ -36,6 +46,10 @@ export class Game {
     this.rng = new Rng(config.seed)
     this.events = new EventBus()
     this.world = new World(config.map)
+    // Place nodes before spawning so blocking nodes affect spawn validation.
+    for (const { defId, x, y } of config.nodes ?? []) {
+      this.world.addNode(new ResourceNode(getResourceNodeDef(defId), { x, y }))
+    }
     this.player = new Player(this.world, this.events, resolveSpawn(config.map, this.world))
   }
 
@@ -50,6 +64,14 @@ export class Game {
    */
   tick(): void {
     this._tickCount++
+    // Respawn depleted nodes first so a node due this tick is gatherable.
+    for (const node of this.world.nodes) {
+      if (node.depleted && this._tickCount >= node.respawnAtTick) {
+        node.respawn()
+        const { x, y } = node.position
+        this.events.emit('nodeRespawned', { nodeId: node.def.id, x, y })
+      }
+    }
     this.player.update(this)
     // Natural stat restore: 1 point toward base per minute (100 ticks).
     if (this._tickCount % STAT_RESTORE_INTERVAL_TICKS === 0) {

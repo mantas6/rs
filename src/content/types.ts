@@ -77,6 +77,21 @@ export interface EquipmentDef {
   attackSpeed?: number
 }
 
+/** Skills that gather resources from world nodes. */
+export type GatherSkill = Extract<SkillName, 'woodcutting' | 'mining' | 'fishing'>
+
+/** Kinds of gathering tools; each ResourceNodeDef requires at most one. */
+export type ToolKind = 'axe' | 'pickaxe' | 'net'
+
+/** Gathering-tool block for items usable on resource nodes. */
+export interface ToolDef {
+  kind: ToolKind
+  /** Higher tiers gather slightly faster (see gathering.ts chance formula). */
+  tier: number
+  /** Level in the matching gather skill required to use the tool. */
+  requiredLevel: number
+}
+
 /** Item definition. */
 export interface ItemDef {
   id: string
@@ -90,4 +105,43 @@ export interface ItemDef {
   equipment?: EquipmentDef
   /** Hitpoints restored when eaten (food items only). */
   healAmount?: number
+  /** Present when the item is a gathering tool (axe/pickaxe/net). */
+  tool?: ToolDef
+}
+
+/**
+ * Resource node definition (trees, rocks, fishing spots).
+ *
+ * Success is rolled once per tick using OSRS-style low/high interpolation:
+ * `chanceLow` is the per-tick success chance at level 1 and `chanceHigh` at
+ * level 99, linearly interpolated between (see gathering.ts).
+ */
+export interface ResourceNodeDef {
+  id: string
+  name: string
+  skill: GatherSkill
+  /** Minimum (boostable) level in `skill` to gather from this node. */
+  levelRequired: number
+  /** XP granted in `skill` per successful gather. */
+  xp: number
+  /** Item received per successful gather. */
+  itemId: string
+  /** Per-tick success chance at level 1 (before tool bonus). */
+  chanceLow: number
+  /** Per-tick success chance at level 99 (before tool bonus). */
+  chanceHigh: number
+  /**
+   * Chance (0..1) rolled after each successful gather that the node
+   * depletes: 1 = always (regular trees, rocks), 0 = never (fishing spots).
+   */
+  depleteChance: number
+  /** Ticks until a depleted node respawns. */
+  respawnTicks: number
+  /** Tool kind needed to gather, or null when no tool is required. */
+  requiredToolKind: ToolKind | null
+  /**
+   * Whether the node blocks walking. Trees/rocks block (including while
+   * depleted — stumps still block); fishing spots never block.
+   */
+  blocksMovement: boolean
 }

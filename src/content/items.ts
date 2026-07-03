@@ -2,7 +2,9 @@
 //
 // Equipment requirements deviate slightly from OSRS for early-game pacing:
 // bronze tier is unrestricted, iron tier requires attack 5 (so requirement
-// gating is exercised from the very start of the game).
+// gating is exercised from the very start of the game). Gathering tools
+// follow the same pacing: bronze tools are usable at level 1, iron tools
+// require level 5 in the matching gather skill.
 import type { ItemDef } from './types'
 
 export const items: Record<string, ItemDef> = {
@@ -19,6 +21,7 @@ export const items: Record<string, ItemDef> = {
     examine: 'A woodcutting axe.',
     stackable: false,
     value: 16,
+    tool: { kind: 'axe', tier: 1, requiredLevel: 1 },
     equipment: {
       slot: 'weapon',
       bonuses: { attackSlash: 3, attackCrush: 1, meleeStrength: 2 },
@@ -31,6 +34,7 @@ export const items: Record<string, ItemDef> = {
     examine: 'A woodcutting axe.',
     stackable: false,
     value: 56,
+    tool: { kind: 'axe', tier: 2, requiredLevel: 5 },
     equipment: {
       slot: 'weapon',
       requirements: { attack: 5 },
@@ -44,6 +48,7 @@ export const items: Record<string, ItemDef> = {
     examine: 'Used for mining.',
     stackable: false,
     value: 1,
+    tool: { kind: 'pickaxe', tier: 1, requiredLevel: 1 },
     equipment: {
       slot: 'weapon',
       bonuses: { attackStab: 4, attackCrush: 2, meleeStrength: 3 },
@@ -56,6 +61,7 @@ export const items: Record<string, ItemDef> = {
     examine: 'Used for mining.',
     stackable: false,
     value: 140,
+    tool: { kind: 'pickaxe', tier: 2, requiredLevel: 5 },
     equipment: {
       slot: 'weapon',
       requirements: { attack: 5 },
@@ -69,6 +75,7 @@ export const items: Record<string, ItemDef> = {
     examine: 'Useful for catching small fish.',
     stackable: false,
     value: 5,
+    tool: { kind: 'net', tier: 1, requiredLevel: 1 },
   },
   tinderbox: {
     id: 'tinderbox',

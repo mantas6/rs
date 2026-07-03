@@ -1,0 +1,93 @@
+// Resource node definitions (trees, rocks, fishing spots). Data-only.
+//
+// chanceLow/chanceHigh are per-tick success chances at level 1 and 99,
+// linearly interpolated by the gathering system (OSRS-style). Respawn times
+// approximate OSRS values in 600ms ticks.
+import type { ResourceNodeDef } from './types'
+
+export const resourceNodes: Record<string, ResourceNodeDef> = {
+  tree: {
+    id: 'tree',
+    name: 'Tree',
+    skill: 'woodcutting',
+    levelRequired: 1,
+    xp: 25,
+    itemId: 'logs',
+    chanceLow: 0.25,
+    chanceHigh: 0.8,
+    depleteChance: 1, // regular trees always fall after one log
+    respawnTicks: 50,
+    requiredToolKind: 'axe',
+    blocksMovement: true,
+  },
+  oak_tree: {
+    id: 'oak_tree',
+    name: 'Oak tree',
+    skill: 'woodcutting',
+    levelRequired: 15,
+    xp: 37.5,
+    itemId: 'oak_logs',
+    chanceLow: 0.15,
+    chanceHigh: 0.65,
+    depleteChance: 0.125, // 1/8 chance to fall per log
+    respawnTicks: 14,
+    requiredToolKind: 'axe',
+    blocksMovement: true,
+  },
+  copper_rock: {
+    id: 'copper_rock',
+    name: 'Copper rocks',
+    skill: 'mining',
+    levelRequired: 1,
+    xp: 17.5,
+    itemId: 'copper_ore',
+    chanceLow: 0.25,
+    chanceHigh: 0.8,
+    depleteChance: 1,
+    respawnTicks: 4,
+    requiredToolKind: 'pickaxe',
+    blocksMovement: true,
+  },
+  tin_rock: {
+    id: 'tin_rock',
+    name: 'Tin rocks',
+    skill: 'mining',
+    levelRequired: 1,
+    xp: 17.5,
+    itemId: 'tin_ore',
+    chanceLow: 0.25,
+    chanceHigh: 0.8,
+    depleteChance: 1,
+    respawnTicks: 4,
+    requiredToolKind: 'pickaxe',
+    blocksMovement: true,
+  },
+  iron_rock: {
+    id: 'iron_rock',
+    name: 'Iron rocks',
+    skill: 'mining',
+    levelRequired: 15,
+    xp: 35,
+    itemId: 'iron_ore',
+    chanceLow: 0.2,
+    chanceHigh: 0.9,
+    depleteChance: 1,
+    respawnTicks: 9,
+    requiredToolKind: 'pickaxe',
+    blocksMovement: true,
+  },
+  fishing_spot_net: {
+    id: 'fishing_spot_net',
+    name: 'Fishing spot',
+    skill: 'fishing',
+    levelRequired: 1,
+    xp: 10,
+    itemId: 'raw_shrimps',
+    chanceLow: 0.25,
+    chanceHigh: 0.7,
+    depleteChance: 0, // fishing spots never deplete
+    respawnTicks: 0,
+    requiredToolKind: 'net',
+    blocksMovement: false,
+  },
+}
