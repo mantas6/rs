@@ -13,8 +13,14 @@ import {
 } from '../systems/firemaking'
 import { GatherAction, validateGather } from '../systems/gathering'
 import { Inventory } from '../systems/inventory'
+import { getItemDef } from '../systems/itemRegistry'
 import { Skills } from '../systems/skills'
-import { type GroundItem, PickUpAction } from '../world/groundItems'
+import {
+  GROUND_ITEM_DESPAWN_TICKS,
+  type GroundItem,
+  type GroundItemManager,
+  PickUpAction,
+} from '../world/groundItems'
 import { findPath, findPathAdjacent } from '../world/pathfinding'
 import type { ResourceNode } from '../world/resourceNode'
 import type { World } from '../world/tileMap'
@@ -30,6 +36,19 @@ import type { Npc } from './npc'
 export interface PlayerAction {
   /** Called once per tick while active. Return false when finished. */
   onTick(game: Game): boolean
+}
+
+/** Why eating an inventory item failed. */
+export type ConsumeFailReason = 'not_food'
+
+// Player consumable events, added via declaration merging (see eventBus.ts).
+declare module '../core/eventBus' {
+  interface GameEvents {
+    /** Emitted when the player eats food (the item is already consumed). */
+    itemEaten: { itemId: string; healed: number; hpAfter: number }
+    /** Emitted when the player drops an inventory stack on the ground. */
+    itemDropped: { itemId: string; quantity: number; x: number; y: number }
+  }
 }
 
 export class Player {
@@ -50,6 +69,9 @@ export class Player {
     private readonly events: EventBus,
     start: Vec2,
     private readonly fires: FireManager,
+    private readonly groundItems: GroundItemManager,
+    /** Current tick supplier (the Game's tick counter). Used by drop(). */
+    private readonly getTick: () => number,
   ) {
     if (!world.isWalkable(start.x, start.y)) {
       throw new Error(`Player start tile (${start.x}, ${start.y}) is not walkable`)
@@ -72,6 +94,55 @@ export class Player {
   /** Unequip a worn slot back into the inventory (false when full/empty). */
   unequip(slot: EquipmentSlot): boolean {
     return this.equipment.unequip(slot, this.inventory)
+  }
+
+  /**
+   * Eat one food item from an inventory slot (instant; no walking and the
+   * current action is kept). Heals `healAmount` hitpoints, capped at the
+   * base level; food is consumed even at full hp (OSRS behavior). Emits
+   * `itemEaten` on success, `actionFailed: not_food` for non-food items,
+   * and returns false for an empty slot without emitting.
+   */
+  eat(slotIndex: number): boolean {
+    const stack = this.inventory.get(slotIndex)
+    if (stack === null) return false
+    const def = getItemDef(stack.itemId)
+    if (def.healAmount === undefined) {
+      this.events.emit('actionFailed', { reason: 'not_food' })
+      return false
+    }
+    this.inventory.removeSlot(slotIndex, 1)
+    const base = this.skills.getLevel('hitpoints')
+    const current = this.skills.getCurrentLevel('hitpoints')
+    const healed = Math.min(def.healAmount, Math.max(0, base - current))
+    if (healed > 0) this.skills.boost('hitpoints', healed)
+    this.events.emit('itemEaten', { itemId: def.id, healed, hpAfter: current + healed })
+    return true
+  }
+
+  /**
+   * Drop the whole stack in an inventory slot onto the player's tile
+   * (instant, like eat). The stack becomes a ground item with the standard
+   * despawn timer. Emits `itemDropped` (plus `groundItemAdded` from the
+   * ground-item manager); returns false for an empty slot.
+   */
+  drop(slotIndex: number): boolean {
+    const removed = this.inventory.removeSlot(slotIndex)
+    if (removed === null) return false
+    this.groundItems.add(
+      removed.itemId,
+      removed.quantity,
+      this._x,
+      this._y,
+      this.getTick() + GROUND_ITEM_DESPAWN_TICKS,
+    )
+    this.events.emit('itemDropped', {
+      itemId: removed.itemId,
+      quantity: removed.quantity,
+      x: this._x,
+      y: this._y,
+    })
+    return true
   }
 
   get x(): number {

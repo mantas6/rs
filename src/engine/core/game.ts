@@ -91,7 +91,14 @@ export class Game {
       this.npcs.push(new Npc(getNpcDef(defId), { x, y }))
     }
     this.spawn = resolveSpawn(config.map, this.world)
-    this.player = new Player(this.world, this.events, this.spawn, this.fires)
+    this.player = new Player(
+      this.world,
+      this.events,
+      this.spawn,
+      this.fires,
+      this.groundItems,
+      () => this._tickCount,
+    )
     this.bank = new Bank(this.events, this.player.inventory)
   }
 

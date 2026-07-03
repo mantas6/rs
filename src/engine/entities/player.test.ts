@@ -144,3 +144,74 @@ describe('Player actions', () => {
     expect(game.player.action).toBeNull()
   })
 })
+
+describe('Player.eat', () => {
+  it('consumes the food and heals damaged hitpoints', () => {
+    const game = makeGame()
+    game.player.inventory.add('shrimps') // heals 3
+    game.player.skills.boost('hitpoints', -5) // 10 -> 5
+    const eaten: Array<{ itemId: string; healed: number; hpAfter: number }> = []
+    game.events.on('itemEaten', (e) => eaten.push(e))
+
+    expect(game.player.eat(0)).toBe(true)
+    expect(game.player.skills.getCurrentLevel('hitpoints')).toBe(8)
+    expect(game.player.inventory.count('shrimps')).toBe(0)
+    expect(eaten).toEqual([{ itemId: 'shrimps', healed: 3, hpAfter: 8 }])
+  })
+
+  it('caps healing at the base hitpoints level and still consumes the food', () => {
+    const game = makeGame()
+    game.player.inventory.add('shrimps')
+    game.player.skills.boost('hitpoints', -1) // 10 -> 9
+    const eaten: Array<{ itemId: string; healed: number; hpAfter: number }> = []
+    game.events.on('itemEaten', (e) => eaten.push(e))
+
+    expect(game.player.eat(0)).toBe(true)
+    expect(game.player.skills.getCurrentLevel('hitpoints')).toBe(10)
+    expect(eaten).toEqual([{ itemId: 'shrimps', healed: 1, hpAfter: 10 }])
+  })
+
+  it('emits actionFailed: not_food for non-food items and keeps them', () => {
+    const game = makeGame()
+    game.player.inventory.add('tinderbox')
+    const failures: string[] = []
+    game.events.on('actionFailed', (e) => failures.push(e.reason))
+
+    expect(game.player.eat(0)).toBe(false)
+    expect(failures).toEqual(['not_food'])
+    expect(game.player.inventory.count('tinderbox')).toBe(1)
+  })
+
+  it('returns false for an empty slot without emitting', () => {
+    const game = makeGame()
+    const failures: string[] = []
+    game.events.on('actionFailed', (e) => failures.push(e.reason))
+    expect(game.player.eat(0)).toBe(false)
+    expect(failures).toEqual([])
+  })
+})
+
+describe('Player.drop', () => {
+  it('drops the whole stack on the player tile with a despawn timer', () => {
+    const game = makeGame()
+    game.player.inventory.add('coins', 25)
+    const dropped: Array<{ itemId: string; quantity: number; x: number; y: number }> = []
+    game.events.on('itemDropped', (e) => dropped.push(e))
+    game.tick() // advance so the despawn timer counts from a nonzero tick
+
+    expect(game.player.drop(0)).toBe(true)
+    expect(game.player.inventory.count('coins')).toBe(0)
+    const onGround = game.groundItems.itemsAt(game.player.x, game.player.y)
+    expect(onGround).toHaveLength(1)
+    expect(onGround[0].itemId).toBe('coins')
+    expect(onGround[0].quantity).toBe(25)
+    expect(onGround[0].despawnAtTick).toBe(game.tickCount + 200)
+    expect(dropped).toEqual([{ itemId: 'coins', quantity: 25, x: game.player.x, y: game.player.y }])
+  })
+
+  it('returns false for an empty slot', () => {
+    const game = makeGame()
+    expect(game.player.drop(0)).toBe(false)
+    expect(game.groundItems.items).toHaveLength(0)
+  })
+})

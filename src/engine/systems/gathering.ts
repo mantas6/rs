@@ -1,6 +1,6 @@
 import type { ResourceNodeDef, ToolDef, ToolKind } from '../../content/types'
 import type { Game } from '../core/game'
-import type { Player, PlayerAction } from '../entities/player'
+import type { ConsumeFailReason, Player, PlayerAction } from '../entities/player'
 import type { ResourceNode } from '../world/resourceNode'
 import { chebyshev } from '../world/vec2'
 import type { BankFailReason } from './bank'
@@ -24,6 +24,7 @@ export type ActionFailReason =
   | FiremakingFailReason
   | CookingFailReason
   | BankFailReason
+  | ConsumeFailReason
 
 // Gathering events, added via declaration merging (see eventBus.ts).
 declare module '../core/eventBus' {
