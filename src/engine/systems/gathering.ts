@@ -3,7 +3,10 @@ import type { Game } from '../core/game'
 import type { Player, PlayerAction } from '../entities/player'
 import type { ResourceNode } from '../world/resourceNode'
 import { chebyshev } from '../world/vec2'
+import type { BankFailReason } from './bank'
 import type { CombatFailReason } from './combat'
+import type { CookingFailReason } from './cooking'
+import type { FiremakingFailReason } from './firemaking'
 import { getItemDef } from './itemRegistry'
 import { MAX_LEVEL } from './skills'
 
@@ -14,8 +17,13 @@ export type GatherFailReason =
   | 'inventory_full'
   | 'node_depleted'
 
-/** Why any player action (gathering, combat, pickup) failed. */
-export type ActionFailReason = GatherFailReason | CombatFailReason
+/** Why any player action (gathering, combat, processing, banking) failed. */
+export type ActionFailReason =
+  | GatherFailReason
+  | CombatFailReason
+  | FiremakingFailReason
+  | CookingFailReason
+  | BankFailReason
 
 // Gathering events, added via declaration merging (see eventBus.ts).
 declare module '../core/eventBus' {

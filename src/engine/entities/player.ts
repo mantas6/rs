@@ -1,8 +1,16 @@
 import type { EquipmentSlot } from '../../content/types'
 import type { EventBus } from '../core/eventBus'
 import type { Game } from '../core/game'
+import { OpenBankAction } from '../systems/bank'
 import { AttackAction, type AttackStyle } from '../systems/combat'
+import { CookAction, type CookingSource, getCookingRecipe, validateCook } from '../systems/cooking'
 import { Equipment } from '../systems/equipment'
+import {
+  type FireManager,
+  getFiremakingDef,
+  LightFireAction,
+  validateLightFire,
+} from '../systems/firemaking'
 import { GatherAction, validateGather } from '../systems/gathering'
 import { Inventory } from '../systems/inventory'
 import { Skills } from '../systems/skills'
@@ -11,6 +19,7 @@ import { findPath, findPathAdjacent } from '../world/pathfinding'
 import type { ResourceNode } from '../world/resourceNode'
 import type { World } from '../world/tileMap'
 import type { Vec2 } from '../world/vec2'
+import type { WorldObject } from '../world/worldObject'
 import type { Npc } from './npc'
 
 /**
@@ -40,6 +49,7 @@ export class Player {
     private readonly world: World,
     private readonly events: EventBus,
     start: Vec2,
+    private readonly fires: FireManager,
   ) {
     if (!world.isWalkable(start.x, start.y)) {
       throw new Error(`Player start tile (${start.x}, ${start.y}) is not walkable`)
@@ -201,6 +211,66 @@ export class Player {
     if (path === null) return false
     this.path = path
     this._action = new PickUpAction(item)
+    return true
+  }
+
+  /**
+   * Start lighting a fire on the current tile with logs from the inventory
+   * (no walking — you light where you stand). Validates up front (tinderbox,
+   * logs, level, and that the tile is free of fires), emitting `actionFailed`
+   * with the reason on failure, then sets a LightFireAction that rolls a
+   * per-tick light chance (see firemaking.ts). Throws on unknown logs ids.
+   */
+  lightFire(logsItemId = 'logs'): boolean {
+    const def = getFiremakingDef(logsItemId)
+    const reason = validateLightFire(this, def, this.world, this.fires, this.position)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    this._action = new LightFireAction(def)
+    return true
+  }
+
+  /**
+   * Start cooking raw food on a fire or cooking-range object. Validates up
+   * front (source valid, level, has the raw item), emitting `actionFailed`
+   * with the reason on failure, then queues a walk to a tile adjacent to
+   * the source and sets a CookAction (walk-then-act, like gathering; one
+   * item per 4 ticks). Returns false when validation fails or no adjacent
+   * tile is reachable (unreachable emits no event). Throws when no recipe
+   * exists for `rawItemId`.
+   */
+  cook(rawItemId: string, source: CookingSource): boolean {
+    const recipe = getCookingRecipe(rawItemId)
+    const reason = validateCook(this, recipe, source)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    const path = findPathAdjacent(this.world, this.position, source.position)
+    if (path === null) return false
+    this.path = path
+    this._action = new CookAction(recipe, source)
+    return true
+  }
+
+  /**
+   * Start opening the bank at a bank booth: queues a walk to an adjacent
+   * tile and sets an OpenBankAction (walk-then-act). Emits `actionFailed:
+   * invalid_source` for a non-bank object; returns false when the booth is
+   * unreachable (unreachable emits no event). The bank closes again on any
+   * movement (see bank.ts) or via `game.bank.close()`.
+   */
+  openBank(booth: WorldObject): boolean {
+    if (!booth.def.bank) {
+      this.events.emit('actionFailed', { reason: 'invalid_source' })
+      return false
+    }
+    const path = findPathAdjacent(this.world, this.position, booth.position)
+    if (path === null) return false
+    this.path = path
+    this._action = new OpenBankAction(booth)
     return true
   }
 

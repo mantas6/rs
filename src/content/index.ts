@@ -3,5 +3,7 @@
 export * from './items'
 export * from './maps'
 export * from './npcs'
+export * from './objects'
+export * from './recipes'
 export * from './resourceNodes'
 export * from './types'

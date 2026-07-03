@@ -154,6 +154,57 @@ export interface ResourceNodeDef {
   blocksMovement: boolean
 }
 
+/**
+ * Cooking recipe definition.
+ *
+ * Burn chance interpolates linearly from 0.5 at `levelRequired` down to 0
+ * at `burnStopLevel` (see cooking.ts `cookBurnChance`). At and above
+ * `burnStopLevel` the food never burns.
+ */
+export interface CookingRecipeDef {
+  /** Raw ingredient consumed per cook attempt. */
+  rawItemId: string
+  /** Item produced on success. */
+  cookedItemId: string
+  /** Item produced on a burn (no xp granted). */
+  burntItemId: string
+  /** Minimum (boostable) cooking level to attempt the recipe. */
+  levelRequired: number
+  /** Cooking xp per successful (non-burnt) cook. */
+  xp: number
+  /** Level at (and above) which the recipe never burns. */
+  burnStopLevel: number
+}
+
+/** Firemaking definition for one kind of logs. */
+export interface FiremakingDef {
+  /** Logs consumed when the fire lights. */
+  logsItemId: string
+  /** Minimum (boostable) firemaking level to light these logs. */
+  levelRequired: number
+  /** Firemaking xp granted when the fire lights. */
+  xp: number
+  /** Ticks the resulting fire burns before expiring. */
+  burnTicks: number
+}
+
+/**
+ * Static world object definition (bank booths, cooking ranges). Placed in
+ * the world like resource nodes (see engine/world/worldObject.ts); blocking
+ * objects affect walkability exactly like blocking nodes do.
+ */
+export interface WorldObjectDef {
+  id: string
+  name: string
+  examine: string
+  /** Whether the object blocks walking (booths and ranges both do). */
+  blocksMovement: boolean
+  /** True when the object opens the bank (player.openBank). */
+  bank?: boolean
+  /** True when food can be cooked on the object (player.cook). */
+  cookingSource?: boolean
+}
+
 /** Combat stat block of an NPC (melee only for now). */
 export interface NpcCombatDef {
   hitpoints: number

@@ -1,10 +1,13 @@
 import type { MapDef } from '../../content/types'
 import { getNpcDef, Npc } from '../entities/npc'
 import { Player } from '../entities/player'
+import { Bank } from '../systems/bank'
+import { FireManager } from '../systems/firemaking'
 import { GroundItemManager } from '../world/groundItems'
 import { getResourceNodeDef, ResourceNode } from '../world/resourceNode'
 import { World } from '../world/tileMap'
 import type { Vec2 } from '../world/vec2'
+import { getWorldObjectDef, WorldObject } from '../world/worldObject'
 import { EventBus } from './eventBus'
 import { Rng } from './rng'
 
@@ -31,6 +34,13 @@ export interface NpcPlacement {
   y: number
 }
 
+/** Placement of a world object (bank booth, range), resolved by def id. */
+export interface ObjectPlacement {
+  defId: string
+  x: number
+  y: number
+}
+
 export interface GameConfig {
   seed: number
   map: MapDef
@@ -38,6 +48,8 @@ export interface GameConfig {
   nodes?: NodePlacement[]
   /** NPCs to spawn at startup (spawn tiles must be walkable). */
   npcs?: NpcPlacement[]
+  /** World objects to place at startup (also addable via world.addObject). */
+  objects?: ObjectPlacement[]
 }
 
 /**
@@ -52,6 +64,8 @@ export class Game {
   readonly player: Player
   readonly npcs: Npc[] = []
   readonly groundItems: GroundItemManager
+  readonly fires: FireManager
+  readonly bank: Bank
   /** Player spawn tile (also the death respawn point). */
   readonly spawn: Readonly<Vec2>
 
@@ -62,9 +76,13 @@ export class Game {
     this.events = new EventBus()
     this.world = new World(config.map)
     this.groundItems = new GroundItemManager(this.events)
-    // Place nodes before spawning so blocking nodes affect spawn validation.
+    this.fires = new FireManager(this.events)
+    // Place nodes/objects before spawning so blocking affects spawn checks.
     for (const { defId, x, y } of config.nodes ?? []) {
       this.world.addNode(new ResourceNode(getResourceNodeDef(defId), { x, y }))
+    }
+    for (const { defId, x, y } of config.objects ?? []) {
+      this.world.addObject(new WorldObject(getWorldObjectDef(defId), { x, y }))
     }
     for (const { defId, x, y } of config.npcs ?? []) {
       if (!this.world.isWalkable(x, y)) {
@@ -73,7 +91,8 @@ export class Game {
       this.npcs.push(new Npc(getNpcDef(defId), { x, y }))
     }
     this.spawn = resolveSpawn(config.map, this.world)
-    this.player = new Player(this.world, this.events, this.spawn)
+    this.player = new Player(this.world, this.events, this.spawn, this.fires)
+    this.bank = new Bank(this.events, this.player.inventory)
   }
 
   get tickCount(): number {
@@ -86,11 +105,13 @@ export class Game {
    *
    * 1. bump the tick counter;
    * 2. respawn depleted nodes (so a node due this tick is gatherable);
-   * 3. update the player (movement / current action, incl. attacks);
-   * 4. update NPCs in spawn order (wander / chase / attack);
-   * 5. respawn dead NPCs whose timer has elapsed (they act next tick);
-   * 6. despawn expired ground items;
-   * 7. natural stat restore, then emit `tick` so listeners observe
+   * 3. expire burnt-out fires (so a fire due this tick is no longer a
+   *    valid cooking source this tick);
+   * 4. update the player (movement / current action, incl. attacks);
+   * 5. update NPCs in spawn order (wander / chase / attack);
+   * 6. respawn dead NPCs whose timer has elapsed (they act next tick);
+   * 7. despawn expired ground items;
+   * 8. natural stat restore, then emit `tick` so listeners observe
    *    settled state.
    */
   tick(): void {
@@ -102,6 +123,7 @@ export class Game {
         this.events.emit('nodeRespawned', { nodeId: node.def.id, x, y })
       }
     }
+    this.fires.expireDue(this._tickCount)
     this.player.update(this)
     for (const npc of this.npcs) {
       npc.update(this)

@@ -1,14 +1,16 @@
 import type { MapDef } from '../../content/types'
 import type { ResourceNode } from './resourceNode'
+import type { WorldObject } from './worldObject'
 
 const WALKABLE = '.'
 const BLOCKED = '#'
 
 /**
  * The game world: a tile map with collision built from a data-only MapDef,
- * plus a registry of placed resource nodes. This class is the single source
- * of truth for spatial queries: `isWalkable` accounts for both the base map
- * and blocking nodes (trees/rocks), so pathfinding routes around them.
+ * plus registries of placed resource nodes and world objects. This class is
+ * the single source of truth for spatial queries: `isWalkable` accounts for
+ * the base map, blocking nodes (trees/rocks) and blocking objects (bank
+ * booths, ranges), so pathfinding routes around them.
  */
 export class World {
   readonly width: number
@@ -18,6 +20,9 @@ export class World {
   private readonly _nodes: ResourceNode[] = []
   /** Node lookup by tile; key = y * width + x. One node per tile. */
   private readonly nodeByTile = new Map<number, ResourceNode>()
+  private readonly _objects: WorldObject[] = []
+  /** Object lookup by tile; key = y * width + x. One object per tile. */
+  private readonly objectByTile = new Map<number, WorldObject>()
 
   constructor(def: MapDef) {
     if (def.tiles.length !== def.height) {
@@ -52,12 +57,14 @@ export class World {
 
   /**
    * True when (x, y) is inside the map, not blocked by terrain, and not
-   * occupied by a blocking resource node (depleted or not).
+   * occupied by a blocking resource node (depleted or not) or a blocking
+   * world object.
    */
   isWalkable(x: number, y: number): boolean {
     if (!this.inBounds(x, y) || this.walkable[y * this.width + x] !== 1) return false
-    const node = this.nodeByTile.get(y * this.width + x)
-    return !node?.blocksMovement
+    const key = y * this.width + x
+    if (this.nodeByTile.get(key)?.blocksMovement) return false
+    return !this.objectByTile.get(key)?.blocksMovement
   }
 
   /** All resource nodes placed in the world. */
@@ -83,5 +90,30 @@ export class World {
   nodeAt(x: number, y: number): ResourceNode | null {
     if (!this.inBounds(x, y)) return null
     return this.nodeByTile.get(y * this.width + x) ?? null
+  }
+
+  /** All world objects placed in the world. */
+  get objects(): readonly WorldObject[] {
+    return this._objects
+  }
+
+  /** Place a world object. One object per tile; the tile must be in bounds. */
+  addObject(object: WorldObject): void {
+    const { x, y } = object.position
+    if (!this.inBounds(x, y)) {
+      throw new Error(`addObject: (${x}, ${y}) is out of bounds`)
+    }
+    const key = y * this.width + x
+    if (this.objectByTile.has(key)) {
+      throw new Error(`addObject: tile (${x}, ${y}) already has an object`)
+    }
+    this.objectByTile.set(key, object)
+    this._objects.push(object)
+  }
+
+  /** The world object on tile (x, y), or null. */
+  objectAt(x: number, y: number): WorldObject | null {
+    if (!this.inBounds(x, y)) return null
+    return this.objectByTile.get(y * this.width + x) ?? null
   }
 }
