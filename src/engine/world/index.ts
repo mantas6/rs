@@ -1,2 +1,4 @@
-// Engine world: tile map, pathfinding. Populated in later tasks.
-export {}
+// Engine world: tile map, pathfinding.
+export * from './pathfinding'
+export * from './tileMap'
+export * from './vec2'

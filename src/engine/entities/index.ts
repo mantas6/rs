@@ -1,2 +1,2 @@
-// Engine entities: Player, NPC. Populated in later tasks.
-export {}
+// Engine entities: Player (NPC in a later task).
+export * from './player'
