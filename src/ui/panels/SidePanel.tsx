@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Game } from '../../engine'
+import type { AudioManager } from '../audio'
 import type { MessageStore } from '../messages'
 import { BankPanel } from './BankPanel'
 import { EquipmentPanel } from './EquipmentPanel'
@@ -11,18 +12,20 @@ type Tab = 'inventory' | 'skills' | 'equipment'
 const TABS: readonly Tab[] = ['inventory', 'skills', 'equipment']
 
 /**
- * OSRS-style side panel: status row (HP orb, run toggle, tick counter),
- * tab strip, and the active tab's panel. While the bank is open the bank
- * interface replaces the tabbed panel.
+ * OSRS-style side panel: status row (HP orb, run toggle, audio toggles,
+ * tick counter), tab strip, and the active tab's panel. While the bank is
+ * open the bank interface replaces the tabbed panel.
  */
 export function SidePanel({
   game,
   store,
   refresh,
+  audio,
 }: {
   game: Game
   store: MessageStore
   refresh: () => void
+  audio: AudioManager
 }) {
   const [tab, setTab] = useState<Tab>('inventory')
   const skills = game.player.skills
@@ -46,6 +49,29 @@ export function SidePanel({
         >
           {game.player.running ? 'Run: on' : 'Run: off'}
         </button>
+        <button
+          type="button"
+          className={`run-toggle audio-toggle${audio.musicEnabled ? ' active' : ''}`}
+          title={audio.musicEnabled ? 'Music: on' : 'Music: off'}
+          onClick={() => {
+            audio.setMusicEnabled(!audio.musicEnabled)
+            refresh()
+          }}
+        >
+          Music
+        </button>
+        <button
+          type="button"
+          className={`run-toggle audio-toggle${audio.sfxEnabled ? ' active' : ''}`}
+          title={audio.sfxEnabled ? 'Sound effects: on' : 'Sound effects: off'}
+          onClick={() => {
+            audio.setSfxEnabled(!audio.sfxEnabled)
+            if (audio.sfxEnabled) audio.play('click')
+            refresh()
+          }}
+        >
+          Sfx
+        </button>
         <span className="tick-counter">Tick {game.tickCount}</span>
       </div>
 
@@ -59,7 +85,10 @@ export function SidePanel({
                 type="button"
                 key={name}
                 className={tab === name ? 'active' : ''}
-                onClick={() => setTab(name)}
+                onClick={() => {
+                  audio.play('click')
+                  setTab(name)
+                }}
               >
                 {name.charAt(0).toUpperCase() + name.slice(1)}
               </button>

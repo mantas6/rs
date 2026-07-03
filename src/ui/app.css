@@ -118,6 +118,11 @@ button {
   font-weight: 600;
 }
 
+.audio-toggle {
+  padding: 6px 6px;
+  font-size: 11px;
+}
+
 .tick-counter {
   margin-left: auto;
   font-size: 11px;
