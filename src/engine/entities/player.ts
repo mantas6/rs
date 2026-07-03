@@ -1,5 +1,6 @@
 import type { EventBus } from '../core/eventBus'
 import type { Game } from '../core/game'
+import { Skills } from '../systems/skills'
 import { findPath } from '../world/pathfinding'
 import type { World } from '../world/tileMap'
 import type { Vec2 } from '../world/vec2'
@@ -15,6 +16,8 @@ export interface PlayerAction {
 }
 
 export class Player {
+  readonly skills: Skills
+
   private _x: number
   private _y: number
   private _running = false
@@ -32,6 +35,7 @@ export class Player {
     }
     this._x = start.x
     this._y = start.y
+    this.skills = new Skills(events)
   }
 
   get x(): number {

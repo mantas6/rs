@@ -11,6 +11,9 @@ import { Rng } from './rng'
  */
 export const TICK_MS = 600
 
+/** Boosted/drained stats move 1 point toward base this often (1 minute). */
+export const STAT_RESTORE_INTERVAL_TICKS = 100
+
 export interface GameConfig {
   seed: number
   map: MapDef
@@ -48,6 +51,10 @@ export class Game {
   tick(): void {
     this._tickCount++
     this.player.update(this)
+    // Natural stat restore: 1 point toward base per minute (100 ticks).
+    if (this._tickCount % STAT_RESTORE_INTERVAL_TICKS === 0) {
+      this.player.skills.restoreTowardBase()
+    }
     this.events.emit('tick', { tick: this._tickCount })
   }
 }
