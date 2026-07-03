@@ -1,5 +1,7 @@
 import type { MapDef } from '../../content/types'
+import { getNpcDef, Npc } from '../entities/npc'
 import { Player } from '../entities/player'
+import { GroundItemManager } from '../world/groundItems'
 import { getResourceNodeDef, ResourceNode } from '../world/resourceNode'
 import { World } from '../world/tileMap'
 import type { Vec2 } from '../world/vec2'
@@ -22,11 +24,20 @@ export interface NodePlacement {
   y: number
 }
 
+/** Placement of an NPC spawn on the map, resolved by def id. */
+export interface NpcPlacement {
+  defId: string
+  x: number
+  y: number
+}
+
 export interface GameConfig {
   seed: number
   map: MapDef
   /** Resource nodes to place at startup (also addable via world.addNode). */
   nodes?: NodePlacement[]
+  /** NPCs to spawn at startup (spawn tiles must be walkable). */
+  npcs?: NpcPlacement[]
 }
 
 /**
@@ -39,6 +50,10 @@ export class Game {
   readonly events: EventBus
   readonly world: World
   readonly player: Player
+  readonly npcs: Npc[] = []
+  readonly groundItems: GroundItemManager
+  /** Player spawn tile (also the death respawn point). */
+  readonly spawn: Readonly<Vec2>
 
   private _tickCount = 0
 
@@ -46,11 +61,19 @@ export class Game {
     this.rng = new Rng(config.seed)
     this.events = new EventBus()
     this.world = new World(config.map)
+    this.groundItems = new GroundItemManager(this.events)
     // Place nodes before spawning so blocking nodes affect spawn validation.
     for (const { defId, x, y } of config.nodes ?? []) {
       this.world.addNode(new ResourceNode(getResourceNodeDef(defId), { x, y }))
     }
-    this.player = new Player(this.world, this.events, resolveSpawn(config.map, this.world))
+    for (const { defId, x, y } of config.npcs ?? []) {
+      if (!this.world.isWalkable(x, y)) {
+        throw new Error(`Npc "${defId}": spawn (${x}, ${y}) is not walkable`)
+      }
+      this.npcs.push(new Npc(getNpcDef(defId), { x, y }))
+    }
+    this.spawn = resolveSpawn(config.map, this.world)
+    this.player = new Player(this.world, this.events, this.spawn)
   }
 
   get tickCount(): number {
@@ -58,13 +81,20 @@ export class Game {
   }
 
   /**
-   * Advance the game by exactly one tick: bump the tick counter, update the
-   * player (movement / current action), then emit the `tick` event so
-   * listeners observe settled state. Later systems hook in here.
+   * Advance the game by exactly one tick, in a fixed order so runs are
+   * deterministic:
+   *
+   * 1. bump the tick counter;
+   * 2. respawn depleted nodes (so a node due this tick is gatherable);
+   * 3. update the player (movement / current action, incl. attacks);
+   * 4. update NPCs in spawn order (wander / chase / attack);
+   * 5. respawn dead NPCs whose timer has elapsed (they act next tick);
+   * 6. despawn expired ground items;
+   * 7. natural stat restore, then emit `tick` so listeners observe
+   *    settled state.
    */
   tick(): void {
     this._tickCount++
-    // Respawn depleted nodes first so a node due this tick is gatherable.
     for (const node of this.world.nodes) {
       if (node.depleted && this._tickCount >= node.respawnAtTick) {
         node.respawn()
@@ -73,6 +103,16 @@ export class Game {
       }
     }
     this.player.update(this)
+    for (const npc of this.npcs) {
+      npc.update(this)
+    }
+    for (const npc of this.npcs) {
+      if (!npc.alive && this._tickCount >= npc.respawnAtTick) {
+        npc.respawn()
+        this.events.emit('npcRespawned', { npcId: npc.def.id, x: npc.x, y: npc.y })
+      }
+    }
+    this.groundItems.despawnDue(this._tickCount)
     // Natural stat restore: 1 point toward base per minute (100 ticks).
     if (this._tickCount % STAT_RESTORE_INTERVAL_TICKS === 0) {
       this.player.skills.restoreTowardBase()

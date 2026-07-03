@@ -66,6 +66,12 @@ export interface EquipmentBonuses {
   prayer: number
 }
 
+/**
+ * Melee damage types. The attacker's matching attack bonus is rolled
+ * against the defender's same-type defence bonus (see combat.ts).
+ */
+export type AttackType = 'stab' | 'slash' | 'crush'
+
 /** Equipment block for wearable/wieldable items. */
 export interface EquipmentDef {
   slot: EquipmentSlot
@@ -75,6 +81,8 @@ export interface EquipmentDef {
   bonuses: Partial<EquipmentBonuses>
   /** Weapon attack speed in ticks. Unarmed/default is 4. */
   attackSpeed?: number
+  /** Melee damage type of a weapon. Unarmed/default is 'crush'. */
+  attackType?: AttackType
 }
 
 /** Skills that gather resources from world nodes. */
@@ -144,4 +152,60 @@ export interface ResourceNodeDef {
    * depleted — stumps still block); fishing spots never block.
    */
   blocksMovement: boolean
+}
+
+/** Combat stat block of an NPC (melee only for now). */
+export interface NpcCombatDef {
+  hitpoints: number
+  attackLevel: number
+  strengthLevel: number
+  defenceLevel: number
+  /** Flat attack bonus (equivalent of equipment attack bonus). */
+  attackBonus: number
+  /** Flat melee strength bonus. */
+  strengthBonus: number
+  /** Defence bonuses per incoming melee attack type. */
+  defenceBonuses: { stab: number; slash: number; crush: number }
+  /** Ticks between attacks. */
+  attackSpeed: number
+  /** Aggressive NPCs attack the player on sight (see npc.ts AGGRO_RANGE). */
+  aggressive: boolean
+  /** Attack reach in tiles (Chebyshev). Melee-only engine supports 1. */
+  attackRange: 1
+  /** Damage type of the NPC's attacks. Defaults to 'crush'. */
+  attackType?: AttackType
+}
+
+/**
+ * One weighted entry in a drop table. `itemId: null` is the explicit
+ * "nothing" entry: when the weighted roll lands on it, no item drops
+ * (its `quantity` is ignored). Weights must be positive integers.
+ */
+export interface DropEntry {
+  itemId: string | null
+  /** Fixed quantity, or an inclusive [min, max] range rolled per drop. */
+  quantity: number | [number, number]
+  weight: number
+}
+
+/**
+ * Drop table: every `always` entry drops on each death (e.g. bones), then
+ * ONE weighted roll is made across `entries` (skipped when empty).
+ */
+export interface DropTable {
+  always?: { itemId: string; quantity: number }[]
+  entries: DropEntry[]
+}
+
+/** NPC definition. */
+export interface NpcDef {
+  id: string
+  name: string
+  examine: string
+  combat: NpcCombatDef
+  /** Ticks after death until the NPC respawns at its spawn tile. */
+  respawnTicks: number
+  drops: DropTable
+  /** Max Chebyshev distance from spawn while wandering. Default 5. */
+  wanderRadius?: number
 }

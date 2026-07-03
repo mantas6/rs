@@ -4,7 +4,7 @@ import { resourceNodes } from '../../content/resourceNodes'
 import { Game, type NodePlacement } from '../core/game'
 import { findPath } from '../world/pathfinding'
 import type { ResourceNode } from '../world/resourceNode'
-import type { GatherFailReason } from './gathering'
+import type { ActionFailReason } from './gathering'
 import { gatherSuccessChance } from './gathering'
 
 // testMap spawn is (2, 2). Tiles used below are walkable in the base map.
@@ -22,8 +22,8 @@ function nodeAt(game: Game, x: number, y: number): ResourceNode {
   return node
 }
 
-function collectFailures(game: Game): GatherFailReason[] {
-  const reasons: GatherFailReason[] = []
+function collectFailures(game: Game): ActionFailReason[] {
+  const reasons: ActionFailReason[] = []
   game.events.on('actionFailed', ({ reason }) => reasons.push(reason))
   return reasons
 }

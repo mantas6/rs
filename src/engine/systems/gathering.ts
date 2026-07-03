@@ -3,6 +3,7 @@ import type { Game } from '../core/game'
 import type { Player, PlayerAction } from '../entities/player'
 import type { ResourceNode } from '../world/resourceNode'
 import { chebyshev } from '../world/vec2'
+import type { CombatFailReason } from './combat'
 import { getItemDef } from './itemRegistry'
 import { MAX_LEVEL } from './skills'
 
@@ -13,11 +14,14 @@ export type GatherFailReason =
   | 'inventory_full'
   | 'node_depleted'
 
+/** Why any player action (gathering, combat, pickup) failed. */
+export type ActionFailReason = GatherFailReason | CombatFailReason
+
 // Gathering events, added via declaration merging (see eventBus.ts).
 declare module '../core/eventBus' {
   interface GameEvents {
     /** Emitted when starting or continuing an action fails validation. */
-    actionFailed: { reason: GatherFailReason }
+    actionFailed: { reason: ActionFailReason }
     /** Emitted on every successful gather (item + xp already granted). */
     resourceGathered: { nodeId: string; itemId: string; xp: number }
     /** Emitted when a node depletes; it respawns at `respawnAtTick`. */

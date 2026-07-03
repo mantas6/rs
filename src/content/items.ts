@@ -26,6 +26,7 @@ export const items: Record<string, ItemDef> = {
       slot: 'weapon',
       bonuses: { attackSlash: 3, attackCrush: 1, meleeStrength: 2 },
       attackSpeed: 4,
+      attackType: 'slash',
     },
   },
   iron_axe: {
@@ -40,6 +41,7 @@ export const items: Record<string, ItemDef> = {
       requirements: { attack: 5 },
       bonuses: { attackSlash: 5, attackCrush: 2, meleeStrength: 4 },
       attackSpeed: 4,
+      attackType: 'slash',
     },
   },
   bronze_pickaxe: {
@@ -53,6 +55,7 @@ export const items: Record<string, ItemDef> = {
       slot: 'weapon',
       bonuses: { attackStab: 4, attackCrush: 2, meleeStrength: 3 },
       attackSpeed: 5,
+      attackType: 'stab',
     },
   },
   iron_pickaxe: {
@@ -67,6 +70,7 @@ export const items: Record<string, ItemDef> = {
       requirements: { attack: 5 },
       bonuses: { attackStab: 6, attackCrush: 3, meleeStrength: 4 },
       attackSpeed: 5,
+      attackType: 'stab',
     },
   },
   small_fishing_net: {
@@ -94,6 +98,7 @@ export const items: Record<string, ItemDef> = {
       slot: 'weapon',
       bonuses: { attackStab: 4, attackSlash: 3, defenceStab: 2, meleeStrength: 5 },
       attackSpeed: 5,
+      attackType: 'stab',
     },
   },
   bronze_scimitar: {
@@ -106,6 +111,7 @@ export const items: Record<string, ItemDef> = {
       slot: 'weapon',
       bonuses: { attackSlash: 7, attackStab: 1, meleeStrength: 6 },
       attackSpeed: 4,
+      attackType: 'slash',
     },
   },
   wooden_shield: {
@@ -274,5 +280,33 @@ export const items: Record<string, ItemDef> = {
     examine: 'Bones are for burying!',
     stackable: false,
     value: 1,
+  },
+  cowhide: {
+    id: 'cowhide',
+    name: 'Cowhide',
+    examine: 'I should take this to the tannery.',
+    stackable: false,
+    value: 1,
+  },
+  raw_beef: {
+    id: 'raw_beef',
+    name: 'Raw beef',
+    examine: 'I should try cooking this.',
+    stackable: false,
+    value: 1,
+  },
+  raw_chicken: {
+    id: 'raw_chicken',
+    name: 'Raw chicken',
+    examine: 'I need to cook this before eating it.',
+    stackable: false,
+    value: 1,
+  },
+  feather: {
+    id: 'feather',
+    name: 'Feather',
+    examine: 'Used for fly fishing.',
+    stackable: true,
+    value: 2,
   },
 }

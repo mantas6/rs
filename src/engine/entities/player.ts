@@ -1,14 +1,17 @@
 import type { EquipmentSlot } from '../../content/types'
 import type { EventBus } from '../core/eventBus'
 import type { Game } from '../core/game'
+import { AttackAction, type AttackStyle } from '../systems/combat'
 import { Equipment } from '../systems/equipment'
 import { GatherAction, validateGather } from '../systems/gathering'
 import { Inventory } from '../systems/inventory'
 import { Skills } from '../systems/skills'
+import { type GroundItem, PickUpAction } from '../world/groundItems'
 import { findPath, findPathAdjacent } from '../world/pathfinding'
 import type { ResourceNode } from '../world/resourceNode'
 import type { World } from '../world/tileMap'
 import type { Vec2 } from '../world/vec2'
+import type { Npc } from './npc'
 
 /**
  * A tick-driven activity the player is performing (chopping, fighting, ...).
@@ -29,6 +32,7 @@ export class Player {
   private _y: number
   private _running = false
   private _action: PlayerAction | null = null
+  private _attackStyle: AttackStyle = 'accurate'
   /** Remaining tiles to step through, in order. */
   private path: Vec2[] = []
 
@@ -84,6 +88,15 @@ export class Player {
     return this._action
   }
 
+  get attackStyle(): AttackStyle {
+    return this._attackStyle
+  }
+
+  /** Set the melee attack style (routes combat xp; see combat.ts). */
+  setAttackStyle(style: AttackStyle): void {
+    this._attackStyle = style
+  }
+
   setRun(running: boolean): void {
     this._running = running
   }
@@ -112,6 +125,33 @@ export class Player {
   }
 
   /**
+   * Queue movement to a tile adjacent to `target` WITHOUT cancelling the
+   * current action. Used by combat to chase a moving NPC mid-action.
+   * Returns false when no adjacent tile is reachable.
+   */
+  chase(target: Vec2): boolean {
+    const path = findPathAdjacent(this.world, this.position, target)
+    if (path === null) return false
+    this.path = path
+    return true
+  }
+
+  /**
+   * Instantly move to (x, y), clearing the movement queue and current
+   * action. Used for death respawns. The target tile must be walkable.
+   */
+  teleport(x: number, y: number): void {
+    if (!this.world.isWalkable(x, y)) {
+      throw new Error(`Player.teleport: (${x}, ${y}) is not walkable`)
+    }
+    this._x = x
+    this._y = y
+    this.path = []
+    this._action = null
+    this.events.emit('playerMoved', { x, y })
+  }
+
+  /**
    * Start gathering from a resource node. Validates up front (emitting
    * `actionFailed` with the reason on failure), then queues a walk to a
    * tile adjacent (Chebyshev 1) to the node and sets a GatherAction. The
@@ -129,6 +169,38 @@ export class Player {
     if (path === null) return false
     this.path = path
     this._action = new GatherAction(node)
+    return true
+  }
+
+  /**
+   * Start attacking an NPC: queues a walk to an adjacent tile and sets an
+   * AttackAction (walk-then-act, like gathering). Emits `actionFailed`
+   * with 'target_dead' for a dead target; returns false when the target
+   * is dead or unreachable (unreachable emits no event).
+   */
+  attack(npc: Npc): boolean {
+    if (!npc.alive) {
+      this.events.emit('actionFailed', { reason: 'target_dead' })
+      return false
+    }
+    const path = findPathAdjacent(this.world, this.position, npc.position)
+    if (path === null) return false
+    this.path = path
+    this._action = new AttackAction(npc)
+    return true
+  }
+
+  /**
+   * Start picking up a ground item: queues a walk to the item's tile and
+   * sets a PickUpAction (walk-then-act). Returns false when the tile is
+   * unreachable. Inventory space is checked on arrival (the pickup tick),
+   * emitting `actionFailed: inventory_full` when nothing fits.
+   */
+  pickUp(item: GroundItem): boolean {
+    const path = findPath(this.world, this.position, { x: item.x, y: item.y })
+    if (path === null) return false
+    this.path = path
+    this._action = new PickUpAction(item)
     return true
   }
 
