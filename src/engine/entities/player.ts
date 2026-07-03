@@ -1,5 +1,8 @@
+import type { EquipmentSlot } from '../../content/types'
 import type { EventBus } from '../core/eventBus'
 import type { Game } from '../core/game'
+import { Equipment } from '../systems/equipment'
+import { Inventory } from '../systems/inventory'
 import { Skills } from '../systems/skills'
 import { findPath } from '../world/pathfinding'
 import type { World } from '../world/tileMap'
@@ -17,6 +20,8 @@ export interface PlayerAction {
 
 export class Player {
   readonly skills: Skills
+  readonly inventory: Inventory
+  readonly equipment: Equipment
 
   private _x: number
   private _y: number
@@ -36,6 +41,21 @@ export class Player {
     this._x = start.x
     this._y = start.y
     this.skills = new Skills(events)
+    this.inventory = new Inventory(events)
+    this.equipment = new Equipment(events)
+  }
+
+  /**
+   * Equip an inventory item by slot index or item id. Returns false when
+   * the item is missing, not equipment, or requirements are unmet.
+   */
+  equip(slotOrItemId: number | string): boolean {
+    return this.equipment.equip(this.inventory, this.skills, slotOrItemId)
+  }
+
+  /** Unequip a worn slot back into the inventory (false when full/empty). */
+  unequip(slot: EquipmentSlot): boolean {
+    return this.equipment.unequip(slot, this.inventory)
   }
 
   get x(): number {
