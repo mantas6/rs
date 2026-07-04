@@ -11,6 +11,7 @@ export interface TilePos {
 
 export class SpriteResources {
   private readonly geometries: THREE.BufferGeometry[] = []
+  private readonly geometryCache = new Map<string, THREE.BufferGeometry>()
   private readonly materialCache = new Map<string, THREE.Material>()
   private readonly textures: THREE.Texture[] = []
 
@@ -18,6 +19,23 @@ export class SpriteResources {
   geo<T extends THREE.BufferGeometry>(geometry: T): T {
     this.geometries.push(geometry)
     return geometry
+  }
+
+  /**
+   * Get-or-create a tracked geometry by an arbitrary key. Identical primitives
+   * (e.g. every dropped coin's disc) then share one BufferGeometry instead of
+   * allocating a fresh one per instance, so repeatedly dropping/picking up
+   * items can't leak geometry — each distinct shape is created once and freed
+   * by dispose(). Meshes must only set their own transform (never mutate the
+   * shared geometry).
+   */
+  geoBy<T extends THREE.BufferGeometry>(key: string, create: () => T): T {
+    let geometry = this.geometryCache.get(key)
+    if (!geometry) {
+      geometry = create()
+      this.geometryCache.set(key, geometry)
+    }
+    return geometry as T
   }
 
   /** Track a texture (e.g. a procedural CanvasTexture) so dispose() frees it. */
@@ -71,6 +89,7 @@ export class SpriteResources {
   /** Free every tracked geometry, material and texture. */
   dispose(): void {
     for (const geometry of this.geometries) geometry.dispose()
+    for (const geometry of this.geometryCache.values()) geometry.dispose()
     for (const material of this.materialCache.values()) material.dispose()
     for (const texture of this.textures) texture.dispose()
   }

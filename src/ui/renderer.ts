@@ -580,7 +580,7 @@ export class GameRenderer {
       updateFireFlicker(group, fire, now)
     }
 
-    // Ground items: yellow octahedra that slowly spin.
+    // Ground items: per-item 3D models that slowly spin and bob on their tile.
     const liveItems = new Set(game.groundItems.items)
     for (const [item, mesh] of this.itemViews) {
       if (!liveItems.has(item)) {
