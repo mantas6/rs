@@ -303,8 +303,32 @@ button {
   background: #2e2718;
   border: 1px solid #4c3f28;
   border-radius: 3px;
-  padding: 3px 6px;
+  padding: 6px;
   font-size: 11px;
+  /* Reset native <button> styling: the cell doubles as a tap target so its
+     xp detail is reachable without a hover tooltip on touch devices. */
+  width: 100%;
+  min-height: 28px;
+  font-family: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.skill-cell:hover,
+.skill-cell:focus-visible {
+  border-color: #6d5a38;
+}
+
+.skill-cell:focus-visible {
+  outline: 1px solid #f4d03f;
+  outline-offset: 1px;
+}
+
+.skill-cell.selected {
+  border-color: #f4d03f;
+  background: #3a3020;
 }
 
 .skill-label {
@@ -330,6 +354,65 @@ button {
 
 .skill-level.drained {
   color: #e07b5f;
+}
+
+.skill-detail {
+  margin-top: 6px;
+  background: #2e2718;
+  border: 1px solid #6d5a38;
+  border-radius: 3px;
+  padding: 6px 8px;
+}
+
+.skill-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f4d03f;
+}
+
+.skill-detail-head .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.skill-detail-stats {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skill-detail-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.skill-detail-stat dt {
+  color: #cbbb99;
+}
+
+.skill-detail-stat dd {
+  margin: 0;
+}
+
+.skill-detail-value {
+  color: #f4d03f;
+  font-weight: 600;
+}
+
+.skill-detail-value.drained {
+  color: #e07b5f;
+}
+
+.skill-detail-value.boosted {
+  color: #7fd05f;
 }
 
 .combat-level {
