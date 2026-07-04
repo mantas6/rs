@@ -4,7 +4,7 @@
 import type { GameSave } from '../engine'
 
 /** Namespaced localStorage key for the single save slot. */
-export const SAVE_STORAGE_KEY = 'rs-clone:save'
+export const SAVE_STORAGE_KEY = 'runeslop:save'
 
 /**
  * Once the save is cleared (player asked for a new game) further writes are

@@ -1,7 +1,8 @@
 {
-  "name": "rs",
+  "name": "runeslop",
   "private": true,
   "version": "0.0.0",
+  "description": "RuneSlop — a singleplayer Old School RuneScape–inspired game with a pure, deterministic TypeScript engine.",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -56,6 +56,16 @@ button {
   gap: 8px;
 }
 
+/* App branding shown above the game viewport. */
+.app-header {
+  flex: 0 0 auto;
+  color: #f4d03f;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 1px 1px 0 #000;
+}
+
 /* The canvas fills this box; it carries the border so the buffer size the
    renderer observes (the wrap's content box) matches the drawn area. */
 .game-canvas-wrap {

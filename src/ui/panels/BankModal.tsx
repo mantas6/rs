@@ -45,7 +45,7 @@ export function BankModal({
   }
 
   return (
-    <Modal title="Bank of RS Clone" className="bank-modal" onClose={close}>
+    <Modal title="Bank of RuneSlop" className="bank-modal" onClose={close}>
       <div className="bank-layout">
         <div className="bank-column bank-column-main">
           <div className="bank-subtitle">Bank — click to withdraw</div>

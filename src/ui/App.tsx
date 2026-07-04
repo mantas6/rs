@@ -29,6 +29,7 @@ export function App() {
   return (
     <div className="app">
       <div className="app-main">
+        <header className="app-header">RuneSlop</header>
         <GameCanvas game={game} version={version} store={store} refresh={refresh} />
         <MessageLog store={store} />
       </div>

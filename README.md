@@ -1,7 +1,7 @@
-# rs
+# RuneSlop
 
-A singleplayer Old School RuneScape–inspired game that runs entirely in the
-browser — and entirely headless. The game engine is pure, deterministic
+RuneSlop is a singleplayer Old School RuneScape–inspired game that runs
+entirely in the browser — and entirely headless. The game engine is pure, deterministic
 TypeScript driven by 600ms ticks; the React + Canvas UI is just one client
 of it. The same public API the UI uses can drive a full play session from a
 test, a script, or a bot.

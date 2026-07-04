@@ -1,4 +1,4 @@
-# RS Clone — Architecture Conventions
+# RuneSlop — Architecture Conventions
 
 Singleplayer Old School RuneScape clone. Vite + React + Canvas + TypeScript (strict).
 
