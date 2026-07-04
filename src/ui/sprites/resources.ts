@@ -12,11 +12,18 @@ export interface TilePos {
 export class SpriteResources {
   private readonly geometries: THREE.BufferGeometry[] = []
   private readonly materialCache = new Map<string, THREE.Material>()
+  private readonly textures: THREE.Texture[] = []
 
   /** Track a geometry so dispose() can free it. */
   geo<T extends THREE.BufferGeometry>(geometry: T): T {
     this.geometries.push(geometry)
     return geometry
+  }
+
+  /** Track a texture (e.g. a procedural CanvasTexture) so dispose() frees it. */
+  texture<T extends THREE.Texture>(texture: T): T {
+    this.textures.push(texture)
+    return texture
   }
 
   /** Cached Lambert material per color/options (freed in dispose). */
@@ -46,10 +53,11 @@ export class SpriteResources {
     return mesh
   }
 
-  /** Free every tracked geometry and material. */
+  /** Free every tracked geometry, material and texture. */
   dispose(): void {
     for (const geometry of this.geometries) geometry.dispose()
     for (const material of this.materialCache.values()) material.dispose()
+    for (const texture of this.textures) texture.dispose()
   }
 }
 

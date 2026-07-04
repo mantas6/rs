@@ -11,7 +11,12 @@ export { createFishingSpotMesh, updateFishingSpotPulse } from './fishingSpot'
 export { createGiantRatMesh } from './giantRatMesh'
 export { createGoblinMesh } from './goblinMesh'
 export { createGroundItemMesh, updateGroundItemSpin } from './groundItem'
-export { createGroundTiles, type GroundTiles } from './groundTiles'
+export {
+  createGroundTiles,
+  updateWaterRipple,
+  type GroundTiles,
+  type WaterAnimation,
+} from './groundTiles'
 export { createHealthBar, updateHealthBar, type HealthBarView } from './healthBar'
 export {
   createHitsplat,

@@ -42,8 +42,10 @@ import {
   updateHitsplat,
   updateNpcAnimation,
   updatePlayerAnimation,
+  updateWaterRipple,
   yawToward,
   type HitsplatView,
+  type WaterAnimation,
   type NpcPose,
   type NpcView,
   type PlayerPose,
@@ -194,10 +196,16 @@ export class GameRenderer {
   private readonly resources = new SpriteResources()
 
   // Static ground meshes plus instance-index → tile lookup for picking.
+  // Grass + water are flat planes; stone walls are raised boxes.
   private groundMesh!: THREE.InstancedMesh
-  private blockedMesh!: THREE.InstancedMesh
+  private waterMesh!: THREE.InstancedMesh
+  private stoneMesh!: THREE.InstancedMesh
   private groundTiles: Hover[] = []
-  private blockedTiles: Hover[] = []
+  private waterTiles: Hover[] = []
+  private stoneTiles: Hover[] = []
+  /** Keys (y*width + x) of raised stone tiles, for the hover-outline height. */
+  private stoneTileKeys = new Set<number>()
+  private waterAnim!: WaterAnimation
 
   /** Root for everything pickable that carries userData.tile. */
   private readonly dynamicRoot = new THREE.Group()
@@ -406,12 +414,18 @@ export class GameRenderer {
   // ---- Static scene construction ----
 
   private buildGround(): void {
-    const ground = createGroundTiles(this.resources, this.game.world)
+    const anisotropy = this.renderer.capabilities.getMaxAnisotropy()
+    const ground = createGroundTiles(this.resources, this.game.world, anisotropy)
     this.groundMesh = ground.groundMesh
-    this.blockedMesh = ground.blockedMesh
+    this.waterMesh = ground.waterMesh
+    this.stoneMesh = ground.stoneMesh
     this.groundTiles = ground.groundTiles
-    this.blockedTiles = ground.blockedTiles
-    this.scene.add(this.groundMesh, this.blockedMesh)
+    this.waterTiles = ground.waterTiles
+    this.stoneTiles = ground.stoneTiles
+    this.waterAnim = ground.water
+    const width = this.game.world.width
+    this.stoneTileKeys = new Set(this.stoneTiles.map((t) => t.y * width + t.x))
+    this.scene.add(this.groundMesh, this.waterMesh, this.stoneMesh)
   }
 
   /** Bank booths, shop counters and cooking ranges parked on their tiles. */
@@ -513,6 +527,9 @@ export class GameRenderer {
 
   private syncScene(now: number, dt: number): void {
     const game = this.game
+
+    // Drift the water surface so the river looks like it flows.
+    updateWaterRipple(this.waterAnim, now)
 
     // Player.
     const p = this.moverPos(game.player, game.player.x, game.player.y)
@@ -760,15 +777,18 @@ export class GameRenderer {
     )
     this.raycaster.setFromCamera(ndc, this.camera)
     const hits = this.raycaster.intersectObjects(
-      [this.dynamicRoot, this.groundMesh, this.blockedMesh],
+      [this.dynamicRoot, this.groundMesh, this.waterMesh, this.stoneMesh],
       true,
     )
     for (const hit of hits) {
       if (hit.object === this.groundMesh && hit.instanceId !== undefined) {
         return this.groundTiles[hit.instanceId] ?? null
       }
-      if (hit.object === this.blockedMesh && hit.instanceId !== undefined) {
-        return this.blockedTiles[hit.instanceId] ?? null
+      if (hit.object === this.waterMesh && hit.instanceId !== undefined) {
+        return this.waterTiles[hit.instanceId] ?? null
+      }
+      if (hit.object === this.stoneMesh && hit.instanceId !== undefined) {
+        return this.stoneTiles[hit.instanceId] ?? null
       }
       // Walk up to the tagged tile group (entity, node, object, fire, item).
       for (let o: THREE.Object3D | null = hit.object; o; o = o.parent) {
@@ -786,10 +806,9 @@ export class GameRenderer {
       return
     }
     this.hoverMesh.visible = true
-    // Outline blocked wall tops instead of z-fighting under the box.
-    const onWall = !this.game.world.isWalkable(hover.x, hover.y) &&
-      !this.game.world.nodeAt(hover.x, hover.y) &&
-      !this.game.world.objectAt(hover.x, hover.y)
+    // Raised stone tiles get the outline on their top face; flat grass/water
+    // tiles keep it just above the ground to avoid z-fighting.
+    const onWall = this.stoneTileKeys.has(hover.y * this.game.world.width + hover.x)
     this.hoverMesh.position.set(hover.x + 0.5, onWall ? 0.85 : 0.04, hover.y + 0.5)
   }
 
@@ -818,7 +837,8 @@ export class GameRenderer {
     this.hitsplats.length = 0
     this.resources.dispose()
     this.groundMesh.dispose()
-    this.blockedMesh.dispose()
+    this.waterMesh.dispose()
+    this.stoneMesh.dispose()
     this.renderer.dispose()
   }
 }
