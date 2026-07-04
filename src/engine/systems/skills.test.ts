@@ -100,6 +100,33 @@ describe('Skills', () => {
     ])
   })
 
+  it('emits levelUp with the exact skill and new level on a single-level gain', () => {
+    const events = new EventBus()
+    const skills = new Skills(events)
+    const ups: Array<{ skill: string; level: number }> = []
+    events.on('levelUp', (e) => ups.push(e))
+    // Climb cooking to exactly level 11, then top up to exactly level 12.
+    skills.addXp('cooking', xpForLevel(11))
+    ups.length = 0 // ignore the 2..11 climb; assert only the single step
+    skills.addXp('cooking', xpForLevel(12) - xpForLevel(11))
+    expect(ups).toEqual([{ skill: 'cooking', level: 12 }])
+    expect(skills.getLevel('cooking')).toBe(12)
+  })
+
+  it('does not emit levelUp when xp is gained without crossing a level', () => {
+    const events = new EventBus()
+    const skills = new Skills(events)
+    const ups: Array<{ skill: string; level: number }> = []
+    events.on('levelUp', (e) => ups.push(e))
+    // 82 xp keeps cooking at level 1 (level 2 needs 83) — xp gained, no level.
+    skills.addXp('cooking', 82)
+    expect(ups).toEqual([])
+    expect(skills.getLevel('cooking')).toBe(1)
+    // A second sub-level gain that still stays at level 1 also emits nothing.
+    skills.addXp('woodcutting', 50)
+    expect(ups).toEqual([])
+  })
+
   it('caps xp at 200m and reports only the xp actually added', () => {
     const events = new EventBus()
     const skills = new Skills(events)
