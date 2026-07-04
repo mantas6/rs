@@ -1,19 +1,27 @@
-// Farm patch: a tilled soil bed with a crop that visibly grows. A brown soil
-// slab always sits on the tile; a "crop" group of little green cones scales up
-// as the planted crop matures (empty when unplanted) and shifts to a ripe
-// colour once fully grown, so the patch reads at a glance.
+// Farm patch: a tilled soil bed with a crop that visibly grows. So an EMPTY
+// patch reads unmistakably as "plantable farmland" (and never as a wall or a
+// plain dirt path), the bed is dressed with a light wooden edging frame and a
+// set of raised furrow ridges — the universal "tilled plot" look. Both are
+// always visible, even before anything is planted. A "crop" group of little
+// green cones then scales up as a planted crop matures and shifts to a ripe
+// colour once fully grown, so the patch's state reads at a glance.
+//
+// Everything sits low to the ground (well under wall height) so the plot never
+// gets confused with the tall timber-framed plaster building walls.
 //
 // Parented to the tile group from `tileGroup` (which carries userData.tile) so
 // the renderer's picker resolves any nested mesh back to this tile — clicking
 // the patch plants or harvests (see renderer.ts / GameCanvas.tsx).
 import * as THREE from 'three'
 import { tileGroup, type SpriteResources } from './resources'
-import { box } from './stall'
+import { box, WOOD, WOOD_LIGHT } from './stall'
 
 /** Tilled dark soil. */
 const SOIL = 0x5a3d24
 /** Raised soil rim. */
 const SOIL_DARK = 0x422c19
+/** Light, sun-caught crest of a tilled furrow ridge (contrasts the dark bed). */
+const SOIL_RIDGE = 0x7a5330
 /** Growing (unripe) crop foliage. */
 const CROP_GROWING = 0x4a8f3c
 /** Ripe, ready-to-harvest crop. */
@@ -34,6 +42,23 @@ export function createFarmPatchMesh(res: SpriteResources, x: number, y: number):
   // Tilled soil: a low rim slab with a slightly inset darker bed.
   group.add(box(res, [0.9, 0.1, 0.9], SOIL_DARK, [0, 0.05, 0]))
   group.add(box(res, [0.78, 0.06, 0.78], SOIL, [0, 0.12, 0]))
+
+  // Furrow ridges: parallel raised soil rows across the bed, in a lighter tone
+  // than the bed so the tilled texture catches the light and reads clearly as
+  // ploughed farmland even when nothing is planted.
+  for (const oz of [-0.27, -0.09, 0.09, 0.27]) {
+    group.add(box(res, [0.66, 0.05, 0.09], SOIL_RIDGE, [0, 0.17, oz]))
+  }
+
+  // Wooden edging frame: four low light-wood rails around the plot border, the
+  // familiar "garden bed" cue that invites planting and clearly sets the patch
+  // apart from the grey/cream stone walls of buildings.
+  for (const oz of [-0.44, 0.44]) {
+    group.add(box(res, [0.96, 0.12, 0.08], WOOD_LIGHT, [0, 0.06, oz]))
+  }
+  for (const ox of [-0.44, 0.44]) {
+    group.add(box(res, [0.08, 0.12, 0.96], WOOD, [ox, 0.06, 0]))
+  }
 
   // Crop foliage: a small cluster of cones, one mesh per colour state. Both
   // colour variants share transforms; visibility flips ripe on/off.
