@@ -54,6 +54,14 @@ src/
   export (e.g. `rng.ts` exports `Rng` utilities, `App.tsx` exports `App`).
   No kebab-case files.
 
+## Save compatibility
+
+- TOP PRIORITY: never break existing player save games. Changes to save data
+  structures, item/npc/content ids, or serialization formats must remain
+  backward compatible with saves produced by earlier versions.
+- When a save format change is unavoidable, add versioned migrations that
+  upgrade old saves to the new format, and cover them with tests.
+
 ## Definition of done
 
 Every task must pass `npm test` and `npm run build` before committing.
