@@ -24,6 +24,13 @@ declare module '../core/eventBus' {
   }
 }
 
+/** JSON-safe snapshot of one lit fire (see FireManager.serialize). */
+export interface FireSave {
+  x: number
+  y: number
+  expiresAtTick: number
+}
+
 /** Item required in the inventory to light any fire. */
 export const TINDERBOX_ITEM_ID = 'tinderbox'
 
@@ -108,6 +115,26 @@ export class FireManager {
     this._fires.push(fire)
     this.events.emit('fireLit', { x, y, expiresAtTick })
     return fire
+  }
+
+  /** JSON-safe copy of every burning fire, for save/load. */
+  serialize(): FireSave[] {
+    return this._fires.map((f) => ({
+      x: f.position.x,
+      y: f.position.y,
+      expiresAtTick: f.expiresAtTick,
+    }))
+  }
+
+  /**
+   * Restore a snapshot from `serialize()`. Emits no events: restore runs
+   * during game construction, before any listeners subscribe.
+   */
+  restore(save: FireSave[]): void {
+    this._fires.length = 0
+    for (const { x, y, expiresAtTick } of save) {
+      this._fires.push(new Fire({ x, y }, expiresAtTick))
+    }
   }
 
   /** Remove every fire whose expiry tick has been reached. */

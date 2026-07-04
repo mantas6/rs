@@ -84,6 +84,19 @@ describe('Rng', () => {
     expect(fromCopy).toEqual(fromOriginal)
   })
 
+  it('getState/setState resume the exact sequence (save/load)', () => {
+    const rng = new Rng(123)
+    for (let i = 0; i < 10; i++) rng.nextFloat()
+
+    const state = rng.getState()
+    const expected = Array.from({ length: 20 }, () => rng.nextFloat())
+
+    const restored = new Rng(999) // seed is irrelevant once state is set
+    restored.setState(state)
+    const resumed = Array.from({ length: 20 }, () => restored.nextFloat())
+    expect(resumed).toEqual(expected)
+  })
+
   it('fork is deterministic and independent of the parent', () => {
     const parentA = new Rng(9000)
     const parentB = new Rng(9000)

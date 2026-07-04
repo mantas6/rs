@@ -12,6 +12,12 @@ export function getResourceNodeDef(id: string): ResourceNodeDef {
   return def
 }
 
+/** JSON-safe snapshot of a node's depletion state (see serialize). */
+export interface ResourceNodeSave {
+  depleted: boolean
+  respawnAtTick: number
+}
+
 /**
  * A resource node placed in the world (tree, rock, fishing spot).
  *
@@ -52,5 +58,16 @@ export class ResourceNode {
   respawn(): void {
     this._depleted = false
     this._respawnAtTick = 0
+  }
+
+  /** JSON-safe snapshot of the depletion state, for save/load. */
+  serialize(): ResourceNodeSave {
+    return { depleted: this._depleted, respawnAtTick: this._respawnAtTick }
+  }
+
+  /** Restore a snapshot from `serialize()`. */
+  restore(save: ResourceNodeSave): void {
+    this._depleted = save.depleted
+    this._respawnAtTick = save.respawnAtTick
   }
 }

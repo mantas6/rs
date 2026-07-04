@@ -88,6 +88,14 @@ export function levelForXp(xp: number): number {
   return lo
 }
 
+/** JSON-safe snapshot of skill state (see Skills.serialize). */
+export interface SkillsSave {
+  /** Xp per skill. */
+  xp: Record<SkillName, number>
+  /** Non-zero boost/drain deltas only (current level = base + delta). */
+  boosts: Partial<Record<SkillName, number>>
+}
+
 /**
  * Per-player skill state: xp per skill plus temporary boosts/drains.
  *
@@ -167,6 +175,37 @@ export class Skills {
     for (const [skill, delta] of this.boostDelta) {
       if (delta === 0) continue
       this.boostDelta.set(skill, delta > 0 ? delta - 1 : delta + 1)
+    }
+  }
+
+  /** JSON-safe snapshot of xp and boost deltas, for save/load. */
+  serialize(): SkillsSave {
+    const xp = {} as Record<SkillName, number>
+    const boosts: Partial<Record<SkillName, number>> = {}
+    for (const skill of SKILL_NAMES) {
+      xp[skill] = this.getXp(skill)
+      const delta = this.boostDelta.get(skill) ?? 0
+      if (delta !== 0) boosts[skill] = delta
+    }
+    return { xp, boosts }
+  }
+
+  /**
+   * Restore a snapshot from `serialize()`. Emits no events: restore runs
+   * during game construction, before any listeners subscribe.
+   */
+  restore(save: SkillsSave): void {
+    for (const skill of SKILL_NAMES) {
+      const xp = save.xp[skill] ?? (skill === 'hitpoints' ? xpForLevel(10) : 0)
+      if (!Number.isFinite(xp) || xp < 0 || xp > MAX_XP) {
+        throw new Error(`Skills.restore: invalid xp for ${skill}: ${xp}`)
+      }
+      this.xp.set(skill, xp)
+    }
+    this.boostDelta.clear()
+    for (const skill of SKILL_NAMES) {
+      const delta = save.boosts[skill]
+      if (delta) this.boostDelta.set(skill, delta)
     }
   }
 

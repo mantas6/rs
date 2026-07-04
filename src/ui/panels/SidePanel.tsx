@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Game } from '../../engine'
 import type { AudioManager } from '../audio'
 import type { MessageStore } from '../messages'
+import { clearStoredSave } from '../saveStorage'
 import { BankPanel } from './BankPanel'
 import { EquipmentPanel } from './EquipmentPanel'
 import { InventoryPanel } from './InventoryPanel'
@@ -73,6 +74,18 @@ export function SidePanel({
           }}
         >
           Sfx
+        </button>
+        <button
+          type="button"
+          className="run-toggle"
+          title="Delete the save and start a fresh game"
+          onClick={() => {
+            if (!window.confirm('Delete your save and start a new game?')) return
+            clearStoredSave()
+            window.location.reload()
+          }}
+        >
+          New game
         </button>
         <span className="tick-counter">Tick {game.tickCount}</span>
       </div>

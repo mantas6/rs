@@ -20,6 +20,13 @@ export interface GroundItem {
   readonly despawnAtTick: number
 }
 
+/** JSON-safe snapshot of all ground stacks (see serialize). `nextId` is
+ * saved too so stack ids stay unique (and deterministic) across a load. */
+export interface GroundItemsSave {
+  nextId: number
+  items: GroundItem[]
+}
+
 // Ground item events, added via declaration merging (see eventBus.ts).
 declare module '../core/eventBus' {
   interface GameEvents {
@@ -81,6 +88,35 @@ export class GroundItemManager {
     const { id, itemId, x, y } = item
     this.events.emit('groundItemRemoved', { id, itemId, x, y, reason })
     return true
+  }
+
+  /** JSON-safe copy of every ground stack, for save/load. */
+  serialize(): GroundItemsSave {
+    return {
+      nextId: this.nextId,
+      items: this._items.map(({ id, itemId, quantity, x, y, despawnAtTick }) => ({
+        id,
+        itemId,
+        quantity,
+        x,
+        y,
+        despawnAtTick,
+      })),
+    }
+  }
+
+  /**
+   * Restore a snapshot from `serialize()`. Throws on unknown item ids.
+   * Emits no events: restore runs during game construction, before any
+   * listeners subscribe.
+   */
+  restore(save: GroundItemsSave): void {
+    this._items.length = 0
+    for (const item of save.items) {
+      getItemDef(item.itemId) // fail fast on unknown item ids
+      this._items.push({ ...item })
+    }
+    this.nextId = save.nextId
   }
 
   /** Remove every stack whose despawn tick has been reached. */

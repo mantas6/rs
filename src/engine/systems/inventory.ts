@@ -13,6 +13,9 @@ export interface ItemStack {
   quantity: number
 }
 
+/** JSON-safe snapshot of all 28 slots (see Inventory.serialize). */
+export type InventorySave = (ItemStack | null)[]
+
 // Inventory events, added via declaration merging (see eventBus.ts).
 declare module '../core/eventBus' {
   interface GameEvents {
@@ -145,6 +148,31 @@ export class Inventory {
       }
     }
     if (changed) this.emitChanged()
+  }
+
+  /** JSON-safe copy of all slots, for save/load. */
+  serialize(): InventorySave {
+    return this._slots.map((s) => (s ? { itemId: s.itemId, quantity: s.quantity } : null))
+  }
+
+  /**
+   * Restore a snapshot from `serialize()`. Throws on unknown item ids or
+   * invalid quantities. Emits no events: restore runs during game
+   * construction, before any listeners subscribe.
+   */
+  restore(save: InventorySave): void {
+    for (let i = 0; i < INVENTORY_SIZE; i++) {
+      const stack = save[i] ?? null
+      if (stack === null) {
+        this._slots[i] = null
+        continue
+      }
+      getItemDef(stack.itemId) // fail fast on unknown item ids
+      if (!Number.isInteger(stack.quantity) || stack.quantity < 1) {
+        throw new Error(`Inventory.restore: invalid quantity ${stack.quantity} in slot ${i}`)
+      }
+      this._slots[i] = { itemId: stack.itemId, quantity: stack.quantity }
+    }
   }
 
   private emitChanged(): void {

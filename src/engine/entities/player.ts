@@ -4,7 +4,7 @@ import type { Game } from '../core/game'
 import { OpenBankAction } from '../systems/bank'
 import { AttackAction, type AttackStyle } from '../systems/combat'
 import { CookAction, type CookingSource, getCookingRecipe, validateCook } from '../systems/cooking'
-import { Equipment } from '../systems/equipment'
+import { Equipment, type EquipmentSave } from '../systems/equipment'
 import {
   type FireManager,
   getFiremakingDef,
@@ -12,10 +12,10 @@ import {
   validateLightFire,
 } from '../systems/firemaking'
 import { GatherAction, validateGather } from '../systems/gathering'
-import { Inventory } from '../systems/inventory'
+import { Inventory, type InventorySave } from '../systems/inventory'
 import { getItemDef } from '../systems/itemRegistry'
 import { OpenShopAction } from '../systems/shop'
-import { Skills } from '../systems/skills'
+import { Skills, type SkillsSave } from '../systems/skills'
 import {
   GROUND_ITEM_DESPAWN_TICKS,
   type GroundItem,
@@ -60,6 +60,21 @@ export interface PlayerAction {
 
 /** Why eating an inventory item failed. */
 export type ConsumeFailReason = 'not_food'
+
+/**
+ * JSON-safe snapshot of the player (see Player.serialize). The movement
+ * queue and in-progress action are NOT saved: on load the player is idle
+ * at the saved tile.
+ */
+export interface PlayerSave {
+  x: number
+  y: number
+  running: boolean
+  attackStyle: AttackStyle
+  skills: SkillsSave
+  inventory: InventorySave
+  equipment: EquipmentSave
+}
 
 // Player consumable events, added via declaration merging (see eventBus.ts).
 declare module '../core/eventBus' {
@@ -383,6 +398,40 @@ export class Player {
     this.path = path
     this._action = new OpenShopAction(counter)
     return true
+  }
+
+  /** JSON-safe snapshot of the player, for save/load. */
+  serialize(): PlayerSave {
+    return {
+      x: this._x,
+      y: this._y,
+      running: this._running,
+      attackStyle: this._attackStyle,
+      skills: this.skills.serialize(),
+      inventory: this.inventory.serialize(),
+      equipment: this.equipment.serialize(),
+    }
+  }
+
+  /**
+   * Restore a snapshot from `serialize()`. The movement queue and current
+   * action are dropped (the player loads idle). Throws when the saved tile
+   * is not walkable. Emits no events: restore runs during game
+   * construction, before any listeners subscribe.
+   */
+  restore(save: PlayerSave): void {
+    if (!this.world.isWalkable(save.x, save.y)) {
+      throw new Error(`Player.restore: (${save.x}, ${save.y}) is not walkable`)
+    }
+    this._x = save.x
+    this._y = save.y
+    this.path = []
+    this._action = null
+    this._running = save.running
+    this._attackStyle = save.attackStyle
+    this.skills.restore(save.skills)
+    this.inventory.restore(save.inventory)
+    this.equipment.restore(save.equipment)
   }
 
   /**

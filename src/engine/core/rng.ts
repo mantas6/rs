@@ -57,4 +57,17 @@ export class Rng {
     copy.state = this.state
     return copy
   }
+
+  /** Internal PRNG state (a uint32), for save/load. */
+  getState(): number {
+    return this.state
+  }
+
+  /**
+   * Restore the internal state captured via `getState()`, so the sequence
+   * continues exactly where the saved Rng left off.
+   */
+  setState(state: number): void {
+    this.state = state >>> 0
+  }
 }

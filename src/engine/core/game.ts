@@ -1,11 +1,11 @@
 import type { MapDef } from '../../content/types'
-import { getNpcDef, Npc } from '../entities/npc'
-import { Player } from '../entities/player'
-import { Bank } from '../systems/bank'
-import { FireManager } from '../systems/firemaking'
+import { getNpcDef, Npc, type NpcSave } from '../entities/npc'
+import { Player, type PlayerSave } from '../entities/player'
+import { Bank, type BankSave } from '../systems/bank'
+import { FireManager, type FireSave } from '../systems/firemaking'
 import { Shop } from '../systems/shop'
-import { GroundItemManager } from '../world/groundItems'
-import { getResourceNodeDef, ResourceNode } from '../world/resourceNode'
+import { GroundItemManager, type GroundItemsSave } from '../world/groundItems'
+import { getResourceNodeDef, ResourceNode, type ResourceNodeSave } from '../world/resourceNode'
 import { World } from '../world/tileMap'
 import type { Vec2 } from '../world/vec2'
 import { getWorldObjectDef, WorldObject } from '../world/worldObject'
@@ -54,11 +54,43 @@ export interface GameConfig {
 }
 
 /**
+ * Version of the GameSave format. Bump on any breaking change to the save
+ * shape; loaders reject other versions (see setup/loadGame.ts) and fall
+ * back to a fresh game.
+ */
+export const SAVE_FORMAT_VERSION = 1
+
+/**
+ * Plain JSON-safe snapshot of a whole game (see Game.serialize). Nodes and
+ * NPCs are saved positionally: the arrays line up index-for-index with the
+ * placements the Game was constructed from, so a save only restores into a
+ * Game built from the same config (createNewGame).
+ *
+ * Deliberately dropped on save: the player's movement queue and in-progress
+ * action (loads idle), NPC combat targets (re-aggro naturally), and any
+ * open bank/shop interface (loads closed).
+ */
+export interface GameSave {
+  version: number
+  seed: number
+  tick: number
+  rngState: number
+  player: PlayerSave
+  bank: BankSave
+  nodes: ResourceNodeSave[]
+  npcs: NpcSave[]
+  groundItems: GroundItemsSave
+  fires: FireSave[]
+}
+
+/**
  * Composition root of the engine. Fully deterministic: the same seed and the
  * same command sequence always produce the same state. Tests call `tick()`
  * manually; the UI calls it every TICK_MS.
  */
 export class Game {
+  /** Seed the game was constructed with (recorded in saves). */
+  readonly seed: number
   readonly rng: Rng
   readonly events: EventBus
   readonly world: World
@@ -74,6 +106,7 @@ export class Game {
   private _tickCount = 0
 
   constructor(config: GameConfig) {
+    this.seed = config.seed
     this.rng = new Rng(config.seed)
     this.events = new EventBus()
     this.world = new World(config.map)
@@ -110,6 +143,53 @@ export class Game {
 
   get tickCount(): number {
     return this._tickCount
+  }
+
+  /**
+   * Snapshot the full mutable game state as a plain JSON-safe object.
+   * Pure: no clocks, no storage — persistence is the caller's concern
+   * (the UI writes it to localStorage). See GameSave for what is dropped.
+   */
+  serialize(): GameSave {
+    return {
+      version: SAVE_FORMAT_VERSION,
+      seed: this.seed,
+      tick: this._tickCount,
+      rngState: this.rng.getState(),
+      player: this.player.serialize(),
+      bank: this.bank.serialize(),
+      nodes: this.world.nodes.map((node) => node.serialize()),
+      npcs: this.npcs.map((npc) => npc.serialize()),
+      groundItems: this.groundItems.serialize(),
+      fires: this.fires.serialize(),
+    }
+  }
+
+  /**
+   * Restore a snapshot from `serialize()` into this Game. The Game must
+   * have been built from the same config the save came from (node/npc
+   * arrays are matched by index). Restoring the Rng state preserves
+   * determinism: original and loaded games evolve identically. Throws on
+   * version or world-shape mismatches and invalid content ids; callers
+   * (setup/loadGame.ts) treat that as an incompatible save.
+   */
+  restore(save: GameSave): void {
+    if (save.version !== SAVE_FORMAT_VERSION) {
+      throw new Error(
+        `Game.restore: save version ${save.version} != ${SAVE_FORMAT_VERSION}`,
+      )
+    }
+    if (save.nodes.length !== this.world.nodes.length || save.npcs.length !== this.npcs.length) {
+      throw new Error('Game.restore: save does not match this world (node/npc count mismatch)')
+    }
+    this._tickCount = save.tick
+    this.rng.setState(save.rngState)
+    this.world.nodes.forEach((node, i) => node.restore(save.nodes[i]))
+    this.npcs.forEach((npc, i) => npc.restore(save.npcs[i]))
+    this.groundItems.restore(save.groundItems)
+    this.fires.restore(save.fires)
+    this.player.restore(save.player)
+    this.bank.restore(save.bank)
   }
 
   /**

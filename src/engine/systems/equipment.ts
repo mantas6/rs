@@ -22,6 +22,9 @@ export const EQUIPMENT_SLOTS: readonly EquipmentSlot[] = [
 /** Attack speed in ticks when no weapon is equipped (unarmed). */
 export const UNARMED_ATTACK_SPEED = 4
 
+/** JSON-safe snapshot of worn equipment (see Equipment.serialize). */
+export type EquipmentSave = Partial<Record<EquipmentSlot, ItemStack>>
+
 // Equipment events, added via declaration merging (see eventBus.ts).
 declare module '../core/eventBus' {
   interface GameEvents {
@@ -101,6 +104,30 @@ export class Equipment {
     this.items.delete(slot)
     this.events.emit('equipmentChanged', { slot, item: null })
     return true
+  }
+
+  /** JSON-safe copy of every worn slot, for save/load. */
+  serialize(): EquipmentSave {
+    const save: EquipmentSave = {}
+    for (const [slot, stack] of this.items) {
+      save[slot] = { itemId: stack.itemId, quantity: stack.quantity }
+    }
+    return save
+  }
+
+  /**
+   * Restore a snapshot from `serialize()`. Throws on unknown item ids.
+   * Emits no events: restore runs during game construction, before any
+   * listeners subscribe.
+   */
+  restore(save: EquipmentSave): void {
+    this.items.clear()
+    for (const slot of EQUIPMENT_SLOTS) {
+      const stack = save[slot]
+      if (!stack) continue
+      getItemDef(stack.itemId) // fail fast on unknown item ids
+      this.items.set(slot, { itemId: stack.itemId, quantity: stack.quantity })
+    }
   }
 
   /** Sum of stat bonuses across all equipped items (used by combat). */

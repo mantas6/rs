@@ -85,6 +85,19 @@ export function rollDrops(rng: Rng, table: DropTable): { itemId: string; quantit
 }
 
 /**
+ * JSON-safe snapshot of an NPC's mutable state (see Npc.serialize). The
+ * combat target is NOT saved: on load NPCs are idle and re-aggro naturally.
+ */
+export interface NpcSave {
+  x: number
+  y: number
+  hp: number
+  alive: boolean
+  respawnAtTick: number
+  nextAttackTick: number
+}
+
+/**
  * An NPC instance placed in the world. NPCs never block walking (a small
  * OSRS-like simplification).
  *
@@ -211,6 +224,32 @@ export class Npc {
     this._y = this.spawnPosition.y
     this._respawnAtTick = 0
     this.nextAttackTick = 0
+  }
+
+  /** JSON-safe snapshot of the mutable state, for save/load. */
+  serialize(): NpcSave {
+    return {
+      x: this._x,
+      y: this._y,
+      hp: this._hp,
+      alive: this._alive,
+      respawnAtTick: this._respawnAtTick,
+      nextAttackTick: this.nextAttackTick,
+    }
+  }
+
+  /**
+   * Restore a snapshot from `serialize()`. The combat target is dropped
+   * (aggressive NPCs re-acquire the player via the normal aggro check).
+   */
+  restore(save: NpcSave): void {
+    this._x = save.x
+    this._y = save.y
+    this._hp = save.hp
+    this._alive = save.alive
+    this._respawnAtTick = save.respawnAtTick
+    this.nextAttackTick = save.nextAttackTick
+    this._target = null
   }
 
   private combatTick(game: Game): void {

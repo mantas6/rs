@@ -24,6 +24,9 @@ declare module '../core/eventBus' {
 /** Deposit/withdraw amount: a positive integer or the whole stack. */
 export type BankQuantity = number | 'all'
 
+/** JSON-safe snapshot of bank contents (see Bank.serialize). */
+export type BankSave = { itemId: string; quantity: number }[]
+
 /**
  * The player's bank, owned by Game. Effectively unlimited: everything
  * stacks per item id (OSRS-style), stored as itemId -> quantity in
@@ -122,6 +125,27 @@ export class Bank {
     if (added < wanted) this.events.emit('actionFailed', { reason: 'inventory_full' })
     if (added > 0) this.addToContents(itemId, -added)
     return added
+  }
+
+  /** JSON-safe copy of the contents (first-deposit order), for save/load. */
+  serialize(): BankSave {
+    return [...this.contents].map(([itemId, quantity]) => ({ itemId, quantity }))
+  }
+
+  /**
+   * Restore a snapshot from `serialize()`. Throws on unknown item ids or
+   * invalid quantities. Emits no events: restore runs during game
+   * construction, before any listeners subscribe.
+   */
+  restore(save: BankSave): void {
+    this.contents.clear()
+    for (const { itemId, quantity } of save) {
+      getItemDef(itemId) // fail fast on unknown item ids
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        throw new Error(`Bank.restore: invalid quantity ${quantity} for ${itemId}`)
+      }
+      this.contents.set(itemId, quantity)
+    }
   }
 
   private requireOpen(): boolean {
