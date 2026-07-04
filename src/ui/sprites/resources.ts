@@ -46,6 +46,21 @@ export class SpriteResources {
     this.materialCache.set(key, material)
   }
 
+  /**
+   * Get-or-create a tracked material by an arbitrary key. Used for custom
+   * materials `mat` can't express (e.g. textured/CanvasTexture materials): the
+   * factory runs once per key and the result is cached + freed by dispose(),
+   * so N objects sharing a key share one material (and its texture).
+   */
+  matBy(key: string, create: () => THREE.Material): THREE.Material {
+    let material = this.materialCache.get(key)
+    if (!material) {
+      material = create()
+      this.materialCache.set(key, material)
+    }
+    return material
+  }
+
   /** A mesh with a cached Lambert material, lifted to the given height. */
   mesh(geometry: THREE.BufferGeometry, color: number, y: number): THREE.Mesh {
     const mesh = new THREE.Mesh(geometry, this.mat(color))
