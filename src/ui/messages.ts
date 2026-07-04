@@ -45,6 +45,8 @@ const FAIL_MESSAGES: Record<ActionFailReason, string> = {
   shop_closed: 'You need to open the shop first.',
   item_not_stocked: "The shop doesn't stock that.",
   not_enough_coins: "You don't have enough coins to buy that.",
+  item_not_bought: "You can't sell that item here.",
+  nothing_to_sell: "You don't have any of those to sell.",
   not_food: "You can't eat that.",
   not_buryable: "You can't bury that.",
 }
@@ -99,6 +101,11 @@ export function connectGameMessages(game: Game, store: MessageStore): () => void
       const name = getItemDef(itemId).name.toLowerCase()
       const what = quantity > 1 ? `${quantity} x ${name}` : `a ${name}`
       store.push(cost > 0 ? `You buy ${what} for ${cost} coins.` : `You buy ${what}.`)
+    }),
+    game.events.on('itemSold', ({ itemId, quantity, revenue }) => {
+      const name = getItemDef(itemId).name.toLowerCase()
+      const what = quantity > 1 ? `${quantity} x ${name}` : `a ${name}`
+      store.push(revenue > 0 ? `You sell ${what} for ${revenue} coins.` : `You sell ${what}.`)
     }),
     game.events.on('npcDied', ({ npcId }) => {
       store.push(`You have defeated the ${getNpcDef(npcId).name.toLowerCase()}!`)

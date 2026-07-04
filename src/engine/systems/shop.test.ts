@@ -19,6 +19,14 @@ const PRICED_SHOP: ShopDef = {
   ],
 }
 
+/** Buying test shop: pays half of an item's base value when selling to it. */
+const BUYING_SHOP: ShopDef = {
+  id: 'test_buying_shop',
+  name: 'Test Buying Shop',
+  sellRate: 0.5,
+  stock: [],
+}
+
 function makeGame(objects: ObjectPlacement[] = [COUNTER], seed = 42): Game {
   return new Game({ seed, map: testMap, objects })
 }
@@ -172,6 +180,82 @@ describe('shop: buying priced stock', () => {
     expect(game.shop.buy('logs', 3)).toBe(1)
     expect(game.player.inventory.count('coins')).toBe(15) // paid for 1
     expect(failures).toEqual(['inventory_full'])
+  })
+})
+
+describe('shop: selling', () => {
+  it('sellPrice is floor(value * sellRate), and 0 for coins or closed shops', () => {
+    const game = makeGame()
+    expect(game.shop.sellPrice('logs')).toBe(0) // closed
+    game.shop.open(BUYING_SHOP)
+    expect(game.shop.sellPrice('logs')).toBe(2) // floor(4 * 0.5)
+    expect(game.shop.sellPrice('coins')).toBe(0) // currency, never bought
+  })
+
+  it('moves items out and pays coins in', () => {
+    const game = makeGame()
+    game.shop.open(BUYING_SHOP)
+    game.player.inventory.add('logs', 3)
+    const sold: Array<{ itemId: string; quantity: number; revenue: number }> = []
+    game.events.on('itemSold', (e) => sold.push(e))
+
+    expect(game.shop.sell('logs', 2)).toBe(2)
+    expect(game.player.inventory.count('logs')).toBe(1)
+    expect(game.player.inventory.count('coins')).toBe(4) // 2 x 2 gp
+    expect(sold).toEqual([{ itemId: 'logs', quantity: 2, revenue: 4 }])
+  })
+
+  it('clamps to how many the player holds', () => {
+    const game = makeGame()
+    game.shop.open(BUYING_SHOP)
+    game.player.inventory.add('logs', 2)
+
+    expect(game.shop.sell('logs', 5)).toBe(2)
+    expect(game.player.inventory.count('logs')).toBe(0)
+    expect(game.player.inventory.count('coins')).toBe(4)
+  })
+
+  it('emits nothing_to_sell when the player holds none', () => {
+    const game = makeGame()
+    game.shop.open(BUYING_SHOP)
+    const failures = collectFailures(game)
+
+    expect(game.shop.sell('logs')).toBe(0)
+    expect(failures).toEqual(['nothing_to_sell'])
+  })
+
+  it('refuses coins and shops without a sellRate with item_not_bought', () => {
+    const game = makeGame()
+    game.player.inventory.add('coins', 10)
+    game.player.inventory.add('logs', 1)
+
+    game.shop.open(BUYING_SHOP)
+    const coinFailures = collectFailures(game)
+    expect(game.shop.sell('coins')).toBe(0)
+    expect(coinFailures).toEqual(['item_not_bought'])
+    expect(game.player.inventory.count('coins')).toBe(10)
+
+    game.shop.open(PRICED_SHOP) // no sellRate: does not buy
+    const shopFailures = collectFailures(game)
+    expect(game.shop.sell('logs')).toBe(0)
+    expect(shopFailures).toEqual(['item_not_bought'])
+    expect(game.player.inventory.count('logs')).toBe(1)
+  })
+
+  it('fails with shop_closed while shut', () => {
+    const game = makeGame()
+    game.player.inventory.add('logs', 1)
+    const failures = collectFailures(game)
+
+    expect(game.shop.sell('logs')).toBe(0)
+    expect(failures).toEqual(['shop_closed'])
+    expect(game.player.inventory.count('logs')).toBe(1)
+  })
+
+  it('rejects non-positive quantities', () => {
+    const game = makeGame()
+    game.shop.open(BUYING_SHOP)
+    expect(() => game.shop.sell('logs', 0)).toThrow('positive integer')
   })
 })
 

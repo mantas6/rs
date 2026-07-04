@@ -255,6 +255,12 @@ export interface ShopDef {
   id: string
   name: string
   stock: ShopStockEntry[]
+  /**
+   * Fraction of an item's base value the shop pays when the player sells to
+   * it (e.g. 0.4 = 40%). A general store buys any item; omit to make the
+   * shop refuse purchases from the player (selling is disabled there).
+   */
+  sellRate?: number
 }
 
 /** Combat stat block of an NPC (melee only for now). */

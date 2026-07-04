@@ -9,6 +9,8 @@ export const shops: Record<string, ShopDef> = {
   lumbridge_general_store: {
     id: 'lumbridge_general_store',
     name: 'Lumbridge General Store',
+    // General store: buys any item back at 40% of its base value.
+    sellRate: 0.4,
     stock: [
       { itemId: 'bronze_axe', price: 0 },
       { itemId: 'bronze_pickaxe', price: 0 },

@@ -10,11 +10,11 @@ import type { MessageStore } from '../messages'
 /**
  * Shop interface, rendered as a modal overlay while game.shop.isOpen. Left
  * grid = the open shop's stock with its price per item (click buys 1,
- * right-click Buy-5/Examine); right grid = the player's inventory for
- * reference while buying (right-click Examine). Stock never sells out (see
- * ShopDef), so quantities are not shown. Closing (X, Escape, or backdrop)
- * issues game.shop.close(); the modal is only mounted while the engine
- * reports a shop open.
+ * right-click Buy-5/Examine); right grid = the player's inventory (click
+ * sells 1, right-click Sell/Sell-5/Examine) when the shop buys items. Stock
+ * never sells out (see ShopDef), so quantities are not shown. Closing (X,
+ * Escape, or backdrop) issues game.shop.close(); the modal is only mounted
+ * while the engine reports a shop open.
  */
 export function ShopModal({
   game,
@@ -29,6 +29,7 @@ export function ShopModal({
   const shop = game.shop
   const def = shop.current
   if (!def) return null
+  const buysItems = def.sellRate != null && def.sellRate > 0
 
   function close(): void {
     shop.close()
@@ -86,7 +87,9 @@ export function ShopModal({
         </div>
 
         <div className="bank-column bank-column-inv">
-          <div className="bank-subtitle">Your inventory</div>
+          <div className="bank-subtitle">
+            {buysItems ? 'Click an item to sell it.' : 'Your inventory'}
+          </div>
           <div className="item-grid inv-grid">
             {game.player.inventory.slots.map((slot, index) =>
               slot ? (
@@ -94,16 +97,34 @@ export function ShopModal({
                   type="button"
                   key={index}
                   className="item-slot filled"
-                  title={getItemDef(slot.itemId).name}
+                  title={
+                    buysItems
+                      ? `${getItemDef(slot.itemId).name} — sell for ${shop.sellPrice(slot.itemId)} gp`
+                      : getItemDef(slot.itemId).name
+                  }
                   onClick={() => {
-                    store.push(getItemDef(slot.itemId).examine)
+                    if (buysItems) shop.sell(slot.itemId, 1)
+                    else store.push(getItemDef(slot.itemId).examine)
                     refresh()
                   }}
                   onContextMenu={(e) => {
                     const itemDef = getItemDef(slot.itemId)
-                    openMenu(e, [
-                      { label: `Examine ${itemDef.name}`, onClick: () => store.push(itemDef.examine) },
-                    ])
+                    const options: MenuOption[] = []
+                    if (buysItems) {
+                      const priceLabel = `${shop.sellPrice(itemDef.id)} gp`
+                      options.push(
+                        {
+                          label: `Sell ${itemDef.name} (${priceLabel})`,
+                          onClick: () => shop.sell(itemDef.id, 1),
+                        },
+                        { label: `Sell-5 ${itemDef.name}`, onClick: () => shop.sell(itemDef.id, 5) },
+                      )
+                    }
+                    options.push({
+                      label: `Examine ${itemDef.name}`,
+                      onClick: () => store.push(itemDef.examine),
+                    })
+                    openMenu(e, options)
                   }}
                 >
                   <ItemIcon itemId={slot.itemId} />

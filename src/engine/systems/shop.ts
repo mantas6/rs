@@ -9,7 +9,12 @@ import type { Inventory } from './inventory'
 import { getItemDef } from './itemRegistry'
 
 /** Why a shop operation failed. */
-export type ShopFailReason = 'shop_closed' | 'item_not_stocked' | 'not_enough_coins'
+export type ShopFailReason =
+  | 'shop_closed'
+  | 'item_not_stocked'
+  | 'not_enough_coins'
+  | 'item_not_bought'
+  | 'nothing_to_sell'
 
 // Shop events, added via declaration merging (see eventBus.ts).
 declare module '../core/eventBus' {
@@ -20,6 +25,8 @@ declare module '../core/eventBus' {
     shopClosed: Record<string, never>
     /** Emitted per purchase; `quantity` is what actually reached the inventory. */
     itemBought: { itemId: string; quantity: number; cost: number }
+    /** Emitted per sale; `quantity` is what actually left the inventory. */
+    itemSold: { itemId: string; quantity: number; revenue: number }
   }
 }
 
@@ -124,6 +131,49 @@ export class Shop {
     if (cost > 0) this.inventory.remove('coins', cost)
     this.events.emit('itemBought', { itemId, quantity: bought, cost })
     return bought
+  }
+
+  /**
+   * Coins the open shop pays per item sold, i.e. `floor(value * sellRate)`.
+   * Returns 0 when no shop is open, when the shop does not buy items (no
+   * `sellRate`), or for coins themselves (which are the currency, not goods).
+   */
+  sellPrice(itemId: string): number {
+    if (!this._current?.sellRate || itemId === 'coins') return 0
+    return Math.floor(getItemDef(itemId).value * this._current.sellRate)
+  }
+
+  /**
+   * Sell up to `quantity` of an item from the inventory to the open shop,
+   * receiving `sellPrice(itemId)` coins per item (see above). Selling is
+   * capped by how many the player actually holds. Returns the quantity sold.
+   * Emits `actionFailed` with `shop_closed` (no shop open), `item_not_bought`
+   * (shop refuses this item), or `nothing_to_sell` (none held); and
+   * `itemSold` when at least one item was sold.
+   */
+  sell(itemId: string, quantity = 1): number {
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new Error(`Shop.sell: quantity must be a positive integer, got ${quantity}`)
+    }
+    if (!this._current) {
+      this.events.emit('actionFailed', { reason: 'shop_closed' })
+      return 0
+    }
+    if (!this._current.sellRate || itemId === 'coins') {
+      this.events.emit('actionFailed', { reason: 'item_not_bought' })
+      return 0
+    }
+    const held = this.inventory.count(itemId)
+    if (held <= 0) {
+      this.events.emit('actionFailed', { reason: 'nothing_to_sell' })
+      return 0
+    }
+    const sold = Math.min(quantity, held)
+    this.inventory.remove(itemId, sold)
+    const revenue = sold * this.sellPrice(itemId)
+    if (revenue > 0) this.inventory.add('coins', revenue)
+    this.events.emit('itemSold', { itemId, quantity: sold, revenue })
+    return sold
   }
 }
 
