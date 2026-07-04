@@ -1,7 +1,7 @@
 import type { EventBus } from '../core/eventBus'
 import type { Game } from '../core/game'
 import type { PlayerAction } from '../entities/player'
-import { chebyshev } from '../world/vec2'
+import { chebyshev, type Vec2 } from '../world/vec2'
 import type { WorldObject } from '../world/worldObject'
 import type { Inventory } from './inventory'
 import { getItemDef } from './itemRegistry'
@@ -152,7 +152,13 @@ export class Bank {
  * ends; it ends silently when the walk was interrupted.
  */
 export class OpenBankAction implements PlayerAction {
+  readonly kind = 'banking'
+
   constructor(private readonly booth: WorldObject) {}
+
+  get targetPosition(): Readonly<Vec2> {
+    return this.booth.position
+  }
 
   onTick(game: Game): boolean {
     if (chebyshev(game.player.position, this.booth.position) !== 1) return false

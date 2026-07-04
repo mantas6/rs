@@ -29,6 +29,20 @@ import type { WorldObject } from '../world/worldObject'
 import type { Npc } from './npc'
 
 /**
+ * What an action visually "is", so the UI can pick an animation. Gathering
+ * actions report their skill; everything else has a dedicated kind.
+ */
+export type PlayerActionKind =
+  | 'woodcutting'
+  | 'mining'
+  | 'fishing'
+  | 'firemaking'
+  | 'cooking'
+  | 'banking'
+  | 'combat'
+  | 'pickup'
+
+/**
  * A tick-driven activity the player is performing (chopping, fighting, ...).
  * Set via `player.setAction(...)`; ticked only while the player is not
  * moving. Starting to walk cancels the current action.
@@ -36,6 +50,10 @@ import type { Npc } from './npc'
 export interface PlayerAction {
   /** Called once per tick while active. Return false when finished. */
   onTick(game: Game): boolean
+  /** Read-only descriptor for the UI (animation picking). */
+  readonly kind?: PlayerActionKind
+  /** Tile the action is aimed at (facing target for the UI), if any. */
+  readonly targetPosition?: Readonly<Vec2> | null
 }
 
 /** Why eating an inventory item failed. */

@@ -172,6 +172,10 @@ const STEP_OFF_ORDER: ReadonlyArray<{ dx: number; dy: number }> = [
  * on success or validation failure.
  */
 export class LightFireAction implements PlayerAction {
+  readonly kind = 'firemaking'
+  /** Fires are lit on the player's own tile — no facing target. */
+  readonly targetPosition = null
+
   constructor(private readonly def: FiremakingDef) {}
 
   onTick(game: Game): boolean {

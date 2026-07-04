@@ -2,7 +2,7 @@ import { cookingRecipes } from '../../content/recipes'
 import type { CookingRecipeDef } from '../../content/types'
 import type { Game } from '../core/game'
 import type { Player, PlayerAction } from '../entities/player'
-import { chebyshev } from '../world/vec2'
+import { chebyshev, type Vec2 } from '../world/vec2'
 import { WorldObject } from '../world/worldObject'
 import { Fire } from './firemaking'
 
@@ -88,12 +88,18 @@ export function validateCook(
  * out, the source expires, or the player is interrupted.
  */
 export class CookAction implements PlayerAction {
+  readonly kind = 'cooking'
+
   private ticksUntilCook = COOK_INTERVAL_TICKS
 
   constructor(
     private readonly recipe: CookingRecipeDef,
     private readonly source: CookingSource,
   ) {}
+
+  get targetPosition(): Readonly<Vec2> {
+    return this.source.position
+  }
 
   onTick(game: Game): boolean {
     const { player, events, rng } = game

@@ -13,9 +13,10 @@
 // tick interpolation, and calling the sprite factories/updaters.
 import * as THREE from 'three'
 import type { NpcDef } from '../content/types'
-import type { Fire, Game, GroundItem, Npc, ResourceNode } from '../engine'
+import type { Fire, Game, GroundItem, Npc, PlayerActionKind, ResourceNode } from '../engine'
 import { getItemDef, TICK_MS } from '../engine'
 import {
+  approachAngle,
   createBankBoothMesh,
   createCookingRangeMesh,
   createFireMesh,
@@ -27,13 +28,19 @@ import {
   createPlayerMesh,
   createRockMesh,
   createTreeMesh,
+  decay01,
+  progress01,
   SpriteResources,
   tileGroup,
   updateFireFlicker,
   updateFishingSpotPulse,
   updateGroundItemSpin,
   updateHealthBar,
+  updatePlayerAnimation,
+  yawToward,
   type NpcView,
+  type PlayerPose,
+  type PlayerView,
 } from './sprites'
 
 /** Canvas viewport size in pixels. */
@@ -89,6 +96,30 @@ const CAM_MAX_PITCH = 1.35
 const KEY_YAW_SPEED = 2.2
 const KEY_PITCH_SPEED = 1.4
 
+// ---- Player animation constants (purely visual; see sprites/playerMesh.ts) ----
+
+/** How long the red flash + flinch lasts after taking damage. */
+const FLINCH_MS = 350
+/** Duration of one attack-swing overlay after the player deals damage. */
+const ATTACK_SWING_MS = 400
+/** Fall-over time and total on-the-ground time after dying. */
+const DEATH_FALL_MS = 500
+const DEATH_TOTAL_MS = 1100
+/** Facing turn speed, radians per second. */
+const TURN_SPEED = 12
+
+/** Pose used for each engine action kind. */
+const ACTION_POSE: Record<PlayerActionKind, PlayerPose> = {
+  woodcutting: 'chop',
+  mining: 'chop',
+  fishing: 'fish',
+  firemaking: 'firemaking',
+  cooking: 'cook',
+  banking: 'bank',
+  pickup: 'bank',
+  combat: 'combat',
+}
+
 /** Tile-position pair used to interpolate one entity between ticks. */
 interface MoverLerp {
   px: number
@@ -130,7 +161,7 @@ export class GameRenderer {
   private readonly dynamicRoot = new THREE.Group()
 
   // Per-engine-object views, synced against engine state every frame.
-  private playerGroup!: THREE.Group
+  private playerView!: PlayerView
   private readonly npcViews = new Map<Npc, NpcView>()
   private readonly nodeViews = new Map<ResourceNode, NodeView>()
   private readonly fireViews = new Map<Fire, THREE.Group>()
@@ -141,6 +172,13 @@ export class GameRenderer {
   private readonly movers = new Map<object, MoverLerp>()
   private lastTickAt = performance.now()
   private readonly unsubscribeTick: () => void
+
+  // Player animation state (purely visual, driven by engine events/state).
+  private playerYaw = Math.PI
+  private lastHurtAt = -Infinity
+  private lastAttackAt = -Infinity
+  private diedAt = -Infinity
+  private readonly unsubscribeAnimEvents: Array<() => void> = []
 
   // Orbit camera state.
   private camYaw = Math.PI
@@ -206,8 +244,20 @@ export class GameRenderer {
     this.buildGround()
     this.buildStaticObjects()
     this.buildNodes()
-    this.playerGroup = createPlayerMesh(this.resources, game.player.x, game.player.y)
-    this.dynamicRoot.add(this.playerGroup)
+    this.playerView = createPlayerMesh(this.resources, game.player.x, game.player.y)
+    this.dynamicRoot.add(this.playerView.group)
+
+    // Transient animation triggers (flinch, attack swing, death fall).
+    this.unsubscribeAnimEvents.push(
+      game.events.on('damageDealt', ({ source, targetId, damage }) => {
+        const at = performance.now()
+        if (source === 'player') this.lastAttackAt = at
+        else if (targetId === 'player' && damage > 0) this.lastHurtAt = at
+      }),
+      game.events.on('playerDied', () => {
+        this.diedAt = performance.now()
+      }),
+    )
     this.hoverMesh = createHoverOutline(this.resources)
     this.scene.add(this.hoverMesh)
     this.scene.add(this.dynamicRoot)
@@ -313,7 +363,7 @@ export class GameRenderer {
     const dt = Math.min((now - this.lastFrameAt) / 1000, 0.1)
     this.lastFrameAt = now
 
-    this.syncScene(now)
+    this.syncScene(now, dt)
     this.updateCamera(dt)
     this.renderer.render(this.scene, this.camera)
   }
@@ -323,13 +373,14 @@ export class GameRenderer {
     if (!this.disposed) this.renderFrame()
   }
 
-  private syncScene(now: number): void {
+  private syncScene(now: number, dt: number): void {
     const game = this.game
 
     // Player.
     const p = this.moverPos(game.player, game.player.x, game.player.y)
-    this.playerGroup.position.set(p.x + 0.5, 0, p.y + 0.5)
-    this.playerGroup.userData.tile = { x: game.player.x, y: game.player.y }
+    this.playerView.group.position.set(p.x + 0.5, 0, p.y + 0.5)
+    this.playerView.group.userData.tile = { x: game.player.x, y: game.player.y }
+    this.animatePlayer(now, dt)
 
     // NPCs: lazily created, hidden while dead, hp bar when damaged.
     for (const npc of game.npcs) {
@@ -389,6 +440,49 @@ export class GameRenderer {
       }
       updateGroundItemSpin(view, now)
     }
+  }
+
+  /**
+   * Pick the player's pose + facing from engine state and drive the
+   * skeleton. Priority: death fall > walking (tick interpolation still in
+   * progress) > current action (via its `kind` descriptor) > open bank >
+   * idle. Facing turns toward the movement direction or the action's
+   * target tile; flinch/attack-swing overlays come from engine events.
+   */
+  private animatePlayer(now: number, dt: number): void {
+    const player = this.game.player
+    const state = this.movers.get(player)
+    const t = clamp((now - this.lastTickAt) / TICK_MS, 0, 1)
+    const walking = !!state && t < 1 && (state.px !== state.cx || state.py !== state.cy)
+    const dying = now - this.diedAt < DEATH_TOTAL_MS
+
+    let pose: PlayerPose = 'idle'
+    let faceTarget: number | null = null
+    if (dying) {
+      pose = 'death'
+    } else if (walking && state) {
+      pose = 'walk'
+      faceTarget = yawToward({ x: state.px, y: state.py }, { x: state.cx, y: state.cy })
+    } else if (player.action?.kind) {
+      pose = ACTION_POSE[player.action.kind]
+      const target = player.action.targetPosition
+      if (target) faceTarget = yawToward(player.position, target)
+    } else if (this.game.bank.isOpen) {
+      pose = 'bank'
+    }
+    if (faceTarget !== null) {
+      this.playerYaw = approachAngle(this.playerYaw, faceTarget, TURN_SPEED * dt)
+    }
+
+    updatePlayerAnimation(this.playerView, {
+      pose,
+      now,
+      tickPhase: t,
+      yaw: this.playerYaw,
+      flinch: dying ? 0 : decay01(now, this.lastHurtAt, FLINCH_MS),
+      death: dying ? Math.min(1, (now - this.diedAt) / DEATH_FALL_MS) : 0,
+      attackSwing: progress01(now, this.lastAttackAt, ATTACK_SWING_MS),
+    })
   }
 
   private updateCamera(dt: number): void {
@@ -465,6 +559,7 @@ export class GameRenderer {
     this.disposed = true
     cancelAnimationFrame(this.rafId)
     this.unsubscribeTick()
+    for (const unsubscribe of this.unsubscribeAnimEvents) unsubscribe()
     this.canvas.removeEventListener('wheel', this.onWheel)
     this.canvas.removeEventListener('mousedown', this.onMouseDown)
     window.removeEventListener('mousemove', this.onMouseMove)

@@ -2,6 +2,7 @@ import type { EventBus } from '../core/eventBus'
 import type { Game } from '../core/game'
 import type { PlayerAction } from '../entities/player'
 import { getItemDef } from '../systems/itemRegistry'
+import type { Vec2 } from './vec2'
 
 /** Ticks a dropped item stays on the ground before despawning (2 minutes). */
 export const GROUND_ITEM_DESPAWN_TICKS = 200
@@ -103,7 +104,13 @@ export class GroundItemManager {
  * ground with its original despawn timer.
  */
 export class PickUpAction implements PlayerAction {
+  readonly kind = 'pickup'
+
   constructor(private readonly item: GroundItem) {}
+
+  get targetPosition(): Readonly<Vec2> {
+    return { x: this.item.x, y: this.item.y }
+  }
 
   onTick(game: Game): boolean {
     const { player, events, groundItems } = game

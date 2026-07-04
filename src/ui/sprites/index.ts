@@ -1,6 +1,7 @@
 // Barrel for the sprite factories: one file per visual object. The renderer
 // (renderer.ts) imports from here and only does orchestration — scene setup,
 // camera, picking, interpolation — never mesh construction.
+export { approachAngle, decay01, progress01, yawToward } from './animation'
 export { createBankBoothMesh } from './bankBooth'
 export { createChickenMesh } from './chickenMesh'
 export { createCookingRangeMesh } from './cookingRange'
@@ -14,7 +15,13 @@ export { createGroundTiles, type GroundTiles } from './groundTiles'
 export { createHealthBar, updateHealthBar, type HealthBarView } from './healthBar'
 export { createHoverOutline } from './hoverOutline'
 export { createNpcMesh, type NpcVariant, type NpcView } from './npcMesh'
-export { createPlayerMesh } from './playerMesh'
+export {
+  createPlayerMesh,
+  updatePlayerAnimation,
+  type PlayerAnimInput,
+  type PlayerPose,
+  type PlayerView,
+} from './playerMesh'
 export { createRockMesh } from './rock'
 export { createTreeMesh } from './tree'
 export { SpriteResources, tileGroup, type TilePos } from './resources'

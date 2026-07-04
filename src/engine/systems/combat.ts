@@ -3,7 +3,7 @@ import type { Game } from '../core/game'
 import type { Rng } from '../core/rng'
 import type { Npc } from '../entities/npc'
 import type { PlayerAction } from '../entities/player'
-import { chebyshev } from '../world/vec2'
+import { chebyshev, type Vec2 } from '../world/vec2'
 import type { Equipment } from './equipment'
 import { getItemDef } from './itemRegistry'
 import type { Skills } from './skills'
@@ -231,10 +231,17 @@ export function handlePlayerDeath(game: Game): void {
  * unreachable.
  */
 export class AttackAction implements PlayerAction {
+  readonly kind = 'combat'
+
   /** Tick at which the player may next attack (0 = immediately). */
   private nextAttackTick = 0
 
   constructor(private readonly npc: Npc) {}
+
+  /** The target NPC's live position (it moves). */
+  get targetPosition(): Readonly<Vec2> {
+    return this.npc.position
+  }
 
   onTick(game: Game): boolean {
     const { player } = game

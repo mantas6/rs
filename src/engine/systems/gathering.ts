@@ -1,8 +1,8 @@
 import type { ResourceNodeDef, ToolDef, ToolKind } from '../../content/types'
 import type { Game } from '../core/game'
-import type { ConsumeFailReason, Player, PlayerAction } from '../entities/player'
+import type { ConsumeFailReason, Player, PlayerAction, PlayerActionKind } from '../entities/player'
 import type { ResourceNode } from '../world/resourceNode'
-import { chebyshev } from '../world/vec2'
+import { chebyshev, type Vec2 } from '../world/vec2'
 import type { BankFailReason } from './bank'
 import type { CombatFailReason } from './combat'
 import type { CookingFailReason } from './cooking'
@@ -117,6 +117,15 @@ export function validateGather(player: Player, node: ResourceNode): GatherFailRe
  */
 export class GatherAction implements PlayerAction {
   constructor(private readonly node: ResourceNode) {}
+
+  /** The node's skill ('woodcutting' | 'mining' | 'fishing'). */
+  get kind(): PlayerActionKind {
+    return this.node.def.skill
+  }
+
+  get targetPosition(): Readonly<Vec2> {
+    return this.node.position
+  }
 
   onTick(game: Game): boolean {
     const { player, events, rng } = game

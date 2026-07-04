@@ -215,3 +215,30 @@ describe('Player.drop', () => {
     expect(game.groundItems.items).toHaveLength(0)
   })
 })
+
+describe('PlayerAction UI descriptors (kind + targetPosition)', () => {
+  it('exposes the gather skill and node tile while gathering', () => {
+    const game = new Game({
+      seed: 7,
+      map: testMap,
+      nodes: [{ defId: 'tree', x: 6, y: 2 }],
+    })
+    game.player.inventory.add('bronze_axe')
+    const node = game.world.nodeAt(6, 2)
+    expect(node).not.toBeNull()
+    expect(game.player.gather(node!)).toBe(true)
+    expect(game.player.action?.kind).toBe('woodcutting')
+    expect(game.player.action?.targetPosition).toEqual({ x: 6, y: 2 })
+  })
+
+  it('exposes combat with the live NPC position while attacking', () => {
+    const game = new Game({
+      seed: 7,
+      map: testMap,
+      npcs: [{ defId: 'chicken', x: 4, y: 2 }],
+    })
+    expect(game.player.attack(game.npcs[0])).toBe(true)
+    expect(game.player.action?.kind).toBe('combat')
+    expect(game.player.action?.targetPosition).toEqual(game.npcs[0].position)
+  })
+})
