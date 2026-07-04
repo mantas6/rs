@@ -15,6 +15,27 @@ const PLAYER_HEAD = 0xe8d5b5
 const HIP_Y = 0.44
 const SHOULDER_Y = 0.86
 
+/**
+ * Empty anchor groups the equipment layer fills with worn-gear meshes (see
+ * playerEquipment.ts). Each anchor is parented to the body part it rides so
+ * gear moves with the animation: weapon/shield swing with the hands, the helm
+ * nods with the head, the platelegs stride with each leg.
+ */
+export interface PlayerGear {
+  /** Main-hand weapon/tool (child of `rightArm`, at the fist). */
+  weapon: THREE.Group
+  /** Off-hand shield (child of `leftArm`, at the fist). */
+  shield: THREE.Group
+  /** Helmet (child of `head`). */
+  head: THREE.Group
+  /** Body armour over the torso (child of `body`). */
+  body: THREE.Group
+  /** Cape hanging off the back (child of `body`). */
+  cape: THREE.Group
+  /** Leg guards, one per leg pivot, so they stride with the legs. */
+  legs: [THREE.Group, THREE.Group]
+}
+
 /** Player scene nodes the animator drives each frame. */
 export interface PlayerView {
   /** Picking-tagged tile group; the renderer positions this. */
@@ -28,6 +49,8 @@ export interface PlayerView {
   rightLeg: THREE.Group
   /** Dedicated (uncached) materials, tinted red for the damage flash. */
   materials: THREE.MeshLambertMaterial[]
+  /** Anchor groups the worn-equipment layer populates. */
+  gear: PlayerGear
 }
 
 /** Visual stance the renderer picked from engine state. */
@@ -76,6 +99,14 @@ function limb(
   return pivot
 }
 
+/** An empty child group parked at a local offset, for hanging gear off a part. */
+function anchor(parent: THREE.Object3D, x: number, y: number, z: number): THREE.Group {
+  const group = new THREE.Group()
+  group.position.set(x, y, z)
+  parent.add(group)
+  return group
+}
+
 export function createPlayerMesh(res: SpriteResources, x: number, y: number): PlayerView {
   const group = tileGroup(x, y)
   const body = new THREE.Group()
@@ -108,7 +139,25 @@ export function createPlayerMesh(res: SpriteResources, x: number, y: number): Pl
   const rightLeg = limb(res, legMat, 0.13, 0.42, 0.09, HIP_Y)
   body.add(leftArm, rightArm, leftLeg, rightLeg)
 
-  return { group, body, head, leftArm, rightArm, leftLeg, rightLeg, materials }
+  // Empty gear anchors, each parented to the part it rides (see PlayerGear).
+  // The hands sit at the bottom of the 0.4-long arm boxes, nudged forward so
+  // held items clear the body.
+  const weapon = anchor(rightArm, 0, -0.4, 0.04)
+  const shield = anchor(leftArm, 0, -0.4, 0.06)
+  const headGear = anchor(head, 0, 0, 0)
+  const bodyGear = anchor(body, 0, 0, 0)
+  const cape = anchor(body, 0, 0, 0)
+  const legGear: [THREE.Group, THREE.Group] = [anchor(leftLeg, 0, 0, 0), anchor(rightLeg, 0, 0, 0)]
+  const gear: PlayerGear = {
+    weapon,
+    shield,
+    head: headGear,
+    body: bodyGear,
+    cape,
+    legs: legGear,
+  }
+
+  return { group, body, head, leftArm, rightArm, leftLeg, rightLeg, materials, gear }
 }
 
 /**

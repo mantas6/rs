@@ -43,6 +43,7 @@ import {
   updateHitsplat,
   updateNpcAnimation,
   updatePlayerAnimation,
+  updatePlayerEquipment,
   updateWaterRipple,
   yawToward,
   type HitsplatView,
@@ -361,6 +362,12 @@ export class GameRenderer {
     this.buildScenery()
     this.playerView = createPlayerMesh(this.resources, game.player.x, game.player.y)
     this.dynamicRoot.add(this.playerView.group)
+    // Build worn-gear visuals from the current (possibly save-restored)
+    // equipment, then keep them in sync whenever a slot changes.
+    this.syncPlayerEquipment()
+    this.unsubscribeAnimEvents.push(
+      game.events.on('equipmentChanged', () => this.syncPlayerEquipment()),
+    )
 
     // Transient animation triggers (flinch, attack swing, death fall) for
     // the player and for the NPC instance carried by each combat event.
@@ -711,6 +718,20 @@ export class GameRenderer {
       death: dying ? Math.min(1, (now - this.diedAt) / DEATH_FALL_MS) : 0,
       attackSwing: progress01(now, this.lastAttackAt, ATTACK_SWING_MS),
     })
+  }
+
+  /**
+   * Rebuild the player's worn-gear meshes from the engine's current
+   * equipment. Reuses cached geometries/materials (SpriteResources), so
+   * re-running it on every equip/unequip never leaks GPU memory.
+   */
+  private syncPlayerEquipment(): void {
+    const equipment = this.game.player.equipment
+    updatePlayerEquipment(
+      this.resources,
+      this.playerView,
+      (slot) => equipment.get(slot)?.itemId ?? null,
+    )
   }
 
   /** The lazily-created view (mesh + animation state) for an NPC. */

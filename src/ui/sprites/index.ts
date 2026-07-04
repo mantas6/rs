@@ -38,9 +38,15 @@ export {
   createPlayerMesh,
   updatePlayerAnimation,
   type PlayerAnimInput,
+  type PlayerGear,
   type PlayerPose,
   type PlayerView,
 } from './playerMesh'
+export {
+  updatePlayerEquipment,
+  VISIBLE_EQUIPMENT_SLOTS,
+  type EquippedItemLookup,
+} from './playerEquipment'
 export { createRockMesh } from './rock'
 export { createScenery, type SceneryView } from './scenery'
 export { createShopCounterMesh } from './shopCounter'
