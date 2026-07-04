@@ -4,6 +4,7 @@ import { Player, type PlayerSave } from '../entities/player'
 import { Bank, type BankSave } from '../systems/bank'
 import { FireManager, type FireSave } from '../systems/firemaking'
 import { Shop } from '../systems/shop'
+import { FarmPatch, type FarmPatchSave, getFarmPatchDef } from '../world/farmPatch'
 import { GroundItemManager, type GroundItemsSave } from '../world/groundItems'
 import { getResourceNodeDef, ResourceNode, type ResourceNodeSave } from '../world/resourceNode'
 import { World } from '../world/tileMap'
@@ -42,6 +43,13 @@ export interface ObjectPlacement {
   y: number
 }
 
+/** Placement of a farm patch on the map, resolved by def id. */
+export interface PatchPlacement {
+  defId: string
+  x: number
+  y: number
+}
+
 export interface GameConfig {
   seed: number
   map: MapDef
@@ -51,14 +59,22 @@ export interface GameConfig {
   npcs?: NpcPlacement[]
   /** World objects to place at startup (also addable via world.addObject). */
   objects?: ObjectPlacement[]
+  /** Farm patches to place at startup (also addable via world.addPatch). */
+  patches?: PatchPlacement[]
 }
 
 /**
  * Version of the GameSave format. Bump on any breaking change to the save
- * shape; loaders reject other versions (see setup/loadGame.ts) and fall
- * back to a fresh game.
+ * shape. Older saves are upgraded by stepwise migrations (see
+ * setup/migrations.ts) before Game.restore runs, so bumping this must be
+ * paired with a migration from the previous version.
+ *
+ * History:
+ * - 1: initial format.
+ * - 2: added `patches` (persistent farm-patch crop state). v1 saves migrate
+ *   by adding an empty `patches: []` (a v1 world had no planted crops).
  */
-export const SAVE_FORMAT_VERSION = 1
+export const SAVE_FORMAT_VERSION = 2
 
 /**
  * Plain JSON-safe snapshot of a whole game (see Game.serialize). Nodes and
@@ -81,6 +97,13 @@ export interface GameSave {
   npcs: NpcSave[]
   groundItems: GroundItemsSave
   fires: FireSave[]
+  /**
+   * Persistent farm-patch crop state, saved positionally (index-for-index
+   * with the patch placements the Game was built from). Restored leniently:
+   * patches missing from the save (e.g. a migrated v1 save with `patches: []`)
+   * keep their default unplanted state. Added in save format v2.
+   */
+  patches: FarmPatchSave[]
 }
 
 /**
@@ -118,6 +141,11 @@ export class Game {
     }
     for (const { defId, x, y } of config.objects ?? []) {
       this.world.addObject(new WorldObject(getWorldObjectDef(defId), { x, y }))
+    }
+    // Farm patches block movement (like nodes/objects), so place them before
+    // spawn resolution too.
+    for (const { defId, x, y } of config.patches ?? []) {
+      this.world.addPatch(new FarmPatch(getFarmPatchDef(defId), { x, y }))
     }
     for (const { defId, x, y } of config.npcs ?? []) {
       if (!this.world.isWalkable(x, y)) {
@@ -162,6 +190,7 @@ export class Game {
       npcs: this.npcs.map((npc) => npc.serialize()),
       groundItems: this.groundItems.serialize(),
       fires: this.fires.serialize(),
+      patches: this.world.patches.map((patch) => patch.serialize()),
     }
   }
 
@@ -172,6 +201,12 @@ export class Game {
    * determinism: original and loaded games evolve identically. Throws on
    * version or world-shape mismatches and invalid content ids; callers
    * (setup/loadGame.ts) treat that as an incompatible save.
+   *
+   * The save must already be at the current SAVE_FORMAT_VERSION — older saves
+   * are upgraded by setup/migrations.ts before reaching here. Patch state is
+   * restored LENIENTLY (positionally, up to the shorter of the two arrays):
+   * patches absent from the save (e.g. a migrated v1 save with `patches: []`)
+   * keep their default unplanted state, so a patch-count mismatch is fine.
    */
   restore(save: GameSave): void {
     if (save.version !== SAVE_FORMAT_VERSION) {
@@ -188,6 +223,13 @@ export class Game {
     this.npcs.forEach((npc, i) => npc.restore(save.npcs[i]))
     this.groundItems.restore(save.groundItems)
     this.fires.restore(save.fires)
+    // Lenient positional patch restore: any patch not present in the save
+    // (migrated v1 saves have none) stays in its default unplanted state.
+    const patchSaves = save.patches ?? []
+    const patchCount = Math.min(patchSaves.length, this.world.patches.length)
+    for (let i = 0; i < patchCount; i++) {
+      this.world.patches[i].restore(patchSaves[i])
+    }
     this.player.restore(save.player)
     this.bank.restore(save.bank)
   }
@@ -198,15 +240,17 @@ export class Game {
    *
    * 1. bump the tick counter;
    * 2. respawn depleted nodes (so a node due this tick is gatherable);
-   * 3. expire burnt-out fires (so a fire due this tick is no longer a
+   * 3. grow every farm patch by one tick (so a crop maturing this tick is
+   *    harvestable this tick);
+   * 4. expire burnt-out fires (so a fire due this tick is no longer a
    *    valid cooking source this tick);
-   * 4. update the player (movement / current action, incl. attacks);
-   * 5. drain active prayers (deterministic, tick-driven; may switch prayers
+   * 5. update the player (movement / current action, incl. attacks);
+   * 6. drain active prayers (deterministic, tick-driven; may switch prayers
    *    off when prayer points run out);
-   * 6. update NPCs in spawn order (wander / chase / attack);
-   * 7. respawn dead NPCs whose timer has elapsed (they act next tick);
-   * 8. despawn expired ground items;
-   * 9. natural stat restore, then emit `tick` so listeners observe
+   * 7. update NPCs in spawn order (wander / chase / attack);
+   * 8. respawn dead NPCs whose timer has elapsed (they act next tick);
+   * 9. despawn expired ground items;
+   * 10. natural stat restore, then emit `tick` so listeners observe
    *    settled state.
    */
   tick(): void {
@@ -216,6 +260,15 @@ export class Game {
         node.respawn()
         const { x, y } = node.position
         this.events.emit('nodeRespawned', { nodeId: node.def.id, x, y })
+      }
+    }
+    for (const patch of this.world.patches) {
+      if (patch.grow()) {
+        this.events.emit('cropGrew', {
+          patchId: patch.def.id,
+          seedId: patch.plantedSeedId as string,
+          stage: patch.stage,
+        })
       }
     }
     this.fires.expireDue(this._tickCount)

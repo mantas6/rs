@@ -14,6 +14,7 @@ import {
   validateTan,
 } from '../systems/crafting'
 import { Equipment, type EquipmentSave } from '../systems/equipment'
+import { HarvestAction, PlantAction, validateHarvest, validatePlant } from '../systems/farming'
 import {
   type FireManager,
   getFiremakingDef,
@@ -43,6 +44,7 @@ import {
   type GroundItemManager,
   PickUpAction,
 } from '../world/groundItems'
+import type { FarmPatch } from '../world/farmPatch'
 import { findPath, findPathAdjacent } from '../world/pathfinding'
 import type { ResourceNode } from '../world/resourceNode'
 import type { World } from '../world/tileMap'
@@ -63,6 +65,7 @@ export type PlayerActionKind =
   | 'smithing'
   | 'crafting'
   | 'fletching'
+  | 'farming'
   | 'banking'
   | 'shopping'
   | 'combat'
@@ -360,6 +363,46 @@ export class Player {
     if (path === null) return false
     this.path = path
     this._action = new GatherAction(node)
+    return true
+  }
+
+  /**
+   * Start planting a seed in a farm patch. Validates up front (emitting
+   * `actionFailed` with the reason on failure), then queues a walk to a tile
+   * adjacent (Chebyshev 1) to the patch and sets a PlantAction (walk-then-act,
+   * like gathering). Returns false when validation fails or no adjacent tile
+   * is reachable (unreachable emits no event).
+   */
+  plant(seedItemId: string, patch: FarmPatch): boolean {
+    const reason = validatePlant(this, patch, seedItemId)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    const path = findPathAdjacent(this.world, this.position, patch.position)
+    if (path === null) return false
+    this.path = path
+    this._action = new PlantAction(patch, seedItemId)
+    return true
+  }
+
+  /**
+   * Start harvesting a grown crop from a farm patch. Validates up front
+   * (emitting `actionFailed` with the reason on failure), then queues a walk
+   * to a tile adjacent to the patch and sets a HarvestAction (walk-then-act,
+   * like planting). Returns false when validation fails or no adjacent tile is
+   * reachable (unreachable emits no event).
+   */
+  harvest(patch: FarmPatch): boolean {
+    const reason = validateHarvest(this, patch)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    const path = findPathAdjacent(this.world, this.position, patch.position)
+    if (path === null) return false
+    this.path = path
+    this._action = new HarvestAction(patch)
     return true
   }
 

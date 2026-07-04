@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { cookingRecipes, smeltingRecipes, smithingRecipes } from '../content/recipes'
-import type { AnvilSource, CookingSource, Game, SmeltingSource } from '../engine'
-import { getItemDef } from '../engine'
+import type { AnvilSource, CookingSource, FarmPatch, Game, SmeltingSource } from '../engine'
+import { getItemDef, isFarmingSeed } from '../engine'
 import { ContextMenu, type MenuState } from './ContextMenu'
 import type { MessageStore } from './messages'
 import { describeTile, GameRenderer, type Hover, npcCombatLevel } from './renderer'
@@ -60,6 +60,33 @@ function forgeFirstBar(game: Game, source: AnvilSource, store: MessageStore): vo
   const productItemId = firstForgeableProductId(game)
   if (productItemId === null) store.push('You have no bars to forge here.')
   else game.player.forge(productItemId, source)
+}
+
+/** Distinct seed item ids the player is holding, in inventory order. */
+function heldSeedIds(game: Game): string[] {
+  const seen = new Set<string>()
+  for (const slot of game.player.inventory.slots) {
+    if (slot && isFarmingSeed(slot.itemId)) seen.add(slot.itemId)
+  }
+  return [...seen]
+}
+
+/**
+ * Left-click a farm patch: harvest a grown crop, otherwise plant the first
+ * held seed (message when the patch is empty and no seed is held).
+ */
+function usePatch(game: Game, patch: FarmPatch, store: MessageStore): void {
+  if (patch.isGrown()) {
+    game.player.harvest(patch)
+    return
+  }
+  if (patch.isPlanted) {
+    store.push('The crop is still growing.')
+    return
+  }
+  const seedId = heldSeedIds(game)[0]
+  if (seedId === undefined) store.push('You have no seeds to plant.')
+  else game.player.plant(seedId, patch)
 }
 
 /**
@@ -138,6 +165,11 @@ export function GameCanvas({
       game.player.gather(node)
       return refresh()
     }
+    const patch = game.world.patchAt(x, y)
+    if (patch) {
+      usePatch(game, patch, store)
+      return refresh()
+    }
     const object = game.world.objectAt(x, y)
     if (object?.def.bank) {
       game.player.openBank(object)
@@ -195,6 +227,27 @@ export function GameCanvas({
       options.push({
         label: `${GATHER_VERBS[node.def.skill]} ${node.def.name}`,
         onClick: () => game.player.gather(node),
+      })
+    }
+
+    const patch = game.world.patchAt(x, y)
+    if (patch) {
+      if (patch.isGrown()) {
+        options.push({
+          label: `Harvest ${patch.def.name}`,
+          onClick: () => game.player.harvest(patch),
+        })
+      } else if (!patch.isPlanted) {
+        for (const seedId of heldSeedIds(game)) {
+          options.push({
+            label: `Plant ${getItemDef(seedId).name}`,
+            onClick: () => game.player.plant(seedId, patch),
+          })
+        }
+      }
+      examines.push({
+        label: `Examine ${patch.def.name}`,
+        onClick: () => store.push(patch.def.examine),
       })
     }
 

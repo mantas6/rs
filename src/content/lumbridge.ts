@@ -3,7 +3,12 @@
 //
 // Type-only imports from the engine (erased at runtime; content stays
 // data-only). Placement types are defined next to GameConfig.
-import type { NodePlacement, NpcPlacement, ObjectPlacement } from '../engine/core/game'
+import type {
+  NodePlacement,
+  NpcPlacement,
+  ObjectPlacement,
+  PatchPlacement,
+} from '../engine/core/game'
 import type { MapDef } from './types'
 
 /**
@@ -216,6 +221,18 @@ export const lumbridgeObjects: ObjectPlacement[] = [
   { defId: 'furnace', x: 36, y: 32 },
   { defId: 'anvil', x: 38, y: 32 },
   { defId: 'tannery', x: 50, y: 8 },
+]
+
+/**
+ * Allotment farm patches: a small plot on the open ground just south of the
+ * castle (the wide east-west clearing at y19), an easy walk from the spawn.
+ * Patches block movement, so they sit on walkable clearing tiles and are
+ * worked from an adjacent tile (see engine/world/farmPatch.ts).
+ */
+export const lumbridgePatches: PatchPlacement[] = [
+  { defId: 'allotment_patch', x: 21, y: 19 },
+  { defId: 'allotment_patch', x: 22, y: 19 },
+  { defId: 'allotment_patch', x: 23, y: 19 },
 ]
 
 /**

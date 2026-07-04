@@ -49,6 +49,10 @@ const FAIL_MESSAGES: Record<ActionFailReason, string> = {
   nothing_to_sell: "You don't have any of those to sell.",
   not_food: "You can't eat that.",
   not_buryable: "You can't bury that.",
+  missing_seed: "You don't have any of those seeds.",
+  patch_occupied: 'This patch already has something growing in it.',
+  patch_empty: 'There is nothing planted in this patch.',
+  not_ready: 'The crop is not ready to harvest yet.',
 }
 
 const GATHER_VERBS: Record<string, (item: string) => string> = {
@@ -104,6 +108,15 @@ export function connectGameMessages(game: Game, store: MessageStore): () => void
     }),
     game.events.on('bonesBuried', ({ itemId }) => {
       store.push(`You dig a hole in the ground and bury the ${getItemDef(itemId).name.toLowerCase()}.`)
+    }),
+    game.events.on('cropPlanted', ({ seedId }) => {
+      store.push(`You plant the ${getItemDef(seedId).name.toLowerCase()} in the patch.`)
+    }),
+    game.events.on('cropHarvested', ({ produceItemId, quantity }) => {
+      const name = getItemDef(produceItemId).name.toLowerCase()
+      store.push(
+        quantity > 1 ? `You harvest ${quantity} ${name} from the patch.` : `You harvest a ${name}.`,
+      )
     }),
     game.events.on('itemBought', ({ itemId, quantity, cost }) => {
       const name = getItemDef(itemId).name.toLowerCase()

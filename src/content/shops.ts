@@ -21,6 +21,9 @@ export const shops: Record<string, ShopDef> = {
       { itemId: 'needle', price: 0 },
       { itemId: 'thread', price: 0 },
       { itemId: 'knife', price: 0 },
+      { itemId: 'potato_seed', price: 0 },
+      { itemId: 'onion_seed', price: 0 },
+      { itemId: 'cabbage_seed', price: 0 },
     ],
   },
 }

@@ -1,4 +1,5 @@
 // Engine world: tile map, pathfinding, resource nodes, objects, ground items.
+export * from './farmPatch'
 export * from './groundItems'
 export * from './pathfinding'
 export * from './resourceNode'

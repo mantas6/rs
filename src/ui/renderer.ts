@@ -14,12 +14,14 @@
 import * as THREE from 'three'
 import type { NpcDef } from '../content/types'
 import type { Fire, Game, GroundItem, Npc, PlayerActionKind, ResourceNode } from '../engine'
-import { getItemDef, TICK_MS } from '../engine'
+import type { FarmPatch } from '../engine'
+import { getFarmingCrop, getItemDef, TICK_MS } from '../engine'
 import {
   approachAngle,
   createAnvilMesh,
   createBankBoothMesh,
   createCookingRangeMesh,
+  createFarmPatchMesh,
   createFireMesh,
   createFishingSpotMesh,
   createFurnaceMesh,
@@ -35,6 +37,8 @@ import {
   createTreeMesh,
   decay01,
   disposeHitsplat,
+  updateFarmPatchGrowth,
+  type FarmPatchView,
   progress01,
   SpriteResources,
   tileGroup,
@@ -108,6 +112,11 @@ export function describeTile(game: Game, x: number, y: number): string | null {
   if (npc) return `${npc.def.name} (level ${npcCombatLevel(npc.def)})`
   const node = game.world.nodeAt(x, y)
   if (node) return node.depleted ? `${node.def.name} (depleted)` : node.def.name
+  const patch = game.world.patchAt(x, y)
+  if (patch) {
+    if (!patch.isPlanted) return `${patch.def.name} (empty)`
+    return patch.isGrown() ? `${patch.def.name} (ready)` : `${patch.def.name} (growing)`
+  }
   const object = game.world.objectAt(x, y)
   if (object) return object.def.name
   const item = game.groundItems.itemsAt(x, y)[0]
@@ -153,6 +162,7 @@ const ACTION_POSE: Record<PlayerActionKind, PlayerPose> = {
   smithing: 'cook', // stand over the furnace, same stance as cooking
   crafting: 'cook', // tanning at the tannery / sewing leather
   fletching: 'cook', // carving logs with a knife, same seated stance
+  farming: 'cook', // kneeling over the patch, same crouched stance
   banking: 'bank',
   shopping: 'bank',
   pickup: 'bank',
@@ -228,6 +238,7 @@ export class GameRenderer {
   private playerView!: PlayerView
   private readonly npcViews = new Map<Npc, NpcView>()
   private readonly nodeViews = new Map<ResourceNode, NodeView>()
+  private readonly patchViews = new Map<FarmPatch, FarmPatchView>()
   private readonly fireViews = new Map<Fire, THREE.Group>()
   private readonly itemViews = new Map<GroundItem, THREE.Object3D>()
   private hoverMesh!: THREE.LineLoop
@@ -366,6 +377,7 @@ export class GameRenderer {
     this.buildGround()
     this.buildStaticObjects()
     this.buildNodes()
+    this.buildPatches()
     this.buildScenery()
     this.playerView = createPlayerMesh(this.resources, game.player.x, game.player.y)
     this.dynamicRoot.add(this.playerView.group)
@@ -482,6 +494,15 @@ export class GameRenderer {
       group.add(live, depleted)
       this.dynamicRoot.add(group)
       this.nodeViews.set(node, { group, live, depleted })
+    }
+  }
+
+  /** Allotment farm patches: tilled soil with a crop that grows over time. */
+  private buildPatches(): void {
+    for (const patch of this.game.world.patches) {
+      const view = createFarmPatchMesh(this.resources, patch.position.x, patch.position.y)
+      this.dynamicRoot.add(view.group)
+      this.patchViews.set(patch, view)
     }
   }
 
@@ -607,6 +628,13 @@ export class GameRenderer {
       view.live.visible = !node.depleted
       view.depleted.visible = node.depleted
       if (node.def.skill === 'fishing') updateFishingSpotPulse(view.live, now)
+    }
+
+    // Farm patches: grow the crop foliage as it matures; ripen when grown.
+    for (const [patch, view] of this.patchViews) {
+      const seedId = patch.plantedSeedId
+      const progress = seedId ? patch.stage / getFarmingCrop(seedId).growthStages : 0
+      updateFarmPatchGrowth(view, patch.isPlanted, progress, patch.isGrown())
     }
 
     // Fires: add new, remove expired, flicker the flames.

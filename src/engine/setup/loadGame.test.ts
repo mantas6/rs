@@ -149,3 +149,60 @@ describe('save/load', () => {
     expect(loadGame(wrongWorld)).toBeNull()
   })
 })
+
+describe('save migration (v1 -> v2)', () => {
+  /** A v1 save: the current save minus `patches`, tagged version 1. */
+  function buildV1Save(): Record<string, unknown> {
+    const current = JSON.parse(JSON.stringify(createNewGame(SEED).serialize())) as Record<
+      string,
+      unknown
+    >
+    delete current.patches
+    current.version = 1
+    return current
+  }
+
+  it('treats a v1 save (no patches) as compatible', () => {
+    const v1 = buildV1Save()
+    expect('patches' in v1).toBe(false)
+    expect(isCompatibleSave(v1)).toBe(true)
+  })
+
+  it('loads a v1 save via migration into a playable game with empty patches', () => {
+    const loaded = loadGame(buildV1Save())
+    expect(loaded).not.toBeNull()
+    const game = loaded as Game
+
+    // The migrated game has its real Lumbridge patches, all unplanted.
+    expect(game.world.patches.length).toBeGreaterThan(0)
+    for (const patch of game.world.patches) {
+      expect(patch.isPlanted).toBe(false)
+    }
+    // ...and it is playable: ticking does not throw and serializes at v2.
+    for (let i = 0; i < 5; i++) game.tick()
+    expect(game.serialize().version).toBe(SAVE_FORMAT_VERSION)
+  })
+
+  it('round-trips planted-patch state across a v2 save/load', () => {
+    const game = createNewGame(SEED)
+    const patch = game.world.patches[0]
+    patch.plant('potato_seed')
+    // Tick partway so the crop is mid-growth (not yet fully grown).
+    game.tick()
+    game.tick()
+    game.tick()
+    expect(patch.isPlanted).toBe(true)
+    expect(patch.isGrown()).toBe(false)
+
+    const loaded = loadGame(JSON.parse(JSON.stringify(game.serialize())))
+    expect(loaded).not.toBeNull()
+    const restored = loaded as Game
+    const restoredPatch = restored.world.patches[0]
+
+    expect(restoredPatch.plantedSeedId).toBe('potato_seed')
+    expect(restoredPatch.stage).toBe(patch.stage)
+    expect(restoredPatch.ticksIntoStage).toBe(patch.ticksIntoStage)
+    // Other patches stay empty.
+    expect(restored.world.patches[1].isPlanted).toBe(false)
+  })
+})

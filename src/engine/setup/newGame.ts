@@ -12,6 +12,7 @@ import {
   lumbridgeNodes,
   lumbridgeNpcs,
   lumbridgeObjects,
+  lumbridgePatches,
 } from '../../content/lumbridge'
 import { Game } from '../core/game'
 
@@ -27,5 +28,6 @@ export function createNewGame(seed: number): Game {
     nodes: lumbridgeNodes,
     npcs: lumbridgeNpcs,
     objects: lumbridgeObjects,
+    patches: lumbridgePatches,
   })
 }

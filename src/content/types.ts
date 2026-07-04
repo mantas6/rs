@@ -292,6 +292,60 @@ export interface FletchingRecipeDef {
   xp: number
 }
 
+/** Category of farm patch; a seed may only be planted in a matching patch. */
+export type FarmPatchCategory = 'allotment'
+
+/**
+ * Farm patch definition (allotment patches). Placed in the world like
+ * resource nodes (see engine/world/farmPatch.ts). Patches block movement so
+ * the player interacts (plants/harvests) from an adjacent tile, just like a
+ * tree or a bank booth. A patch holds persistent crop state (see FarmPatch),
+ * so unlike stateless world objects it is serialized in the save.
+ */
+export interface FarmPatchDef {
+  id: string
+  name: string
+  examine: string
+  /** Whether the patch blocks walking (allotment patches do). */
+  blocksMovement: boolean
+  /** Which seeds may be planted here (matched against SeedDef.category). */
+  category: FarmPatchCategory
+}
+
+/**
+ * Farming crop definition (Farming skill): the full lifecycle of one seed,
+ * keyed by its seed item id in farmingCrops. A seed is planted in a matching
+ * patch (`category`), grows through `growthStages` stages of `ticksPerStage`
+ * ticks each, then can be harvested for a Rng-rolled yield in
+ * [minYield, maxYield] produce items, granting `harvestXp` per produce.
+ *
+ * Growth times are deliberately short (a handful of stages, a few ticks
+ * each) so farming stays playable in a fast singleplayer clone and in tests,
+ * while keeping the OSRS-style staged-growth flavour.
+ */
+export interface SeedDef {
+  /** Seed item consumed when planting (one per plant). */
+  seedItemId: string
+  /** Produce item rolled out on harvest. */
+  produceItemId: string
+  /** Patch category this seed may be planted in. */
+  category: FarmPatchCategory
+  /** Minimum (boostable) Farming level to plant this seed. */
+  levelRequired: number
+  /** Farming xp granted when the seed is planted. */
+  plantXp: number
+  /** Farming xp granted per produce item harvested. */
+  harvestXp: number
+  /** Number of growth stages the crop advances through before it is ready. */
+  growthStages: number
+  /** Ticks the crop spends in each growth stage. */
+  ticksPerStage: number
+  /** Minimum produce rolled on harvest (inclusive). */
+  minYield: number
+  /** Maximum produce rolled on harvest (inclusive). */
+  maxYield: number
+}
+
 /**
  * Static world object definition (bank booths, cooking ranges, shop
  * counters). Placed in the world like resource nodes (see

@@ -435,10 +435,39 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
   },
   farming: {
     skill: 'farming',
-    summary: 'Grows crops in patches over time in classic OSRS. Not yet implemented in this version.',
-    trainable: false,
-    steps: [],
-    notes: [],
+    summary:
+      'Plant seeds in allotment patches, wait for them to grow over time, then harvest the produce for XP.',
+    trainable: true,
+    steps: [
+      {
+        level: 1,
+        action:
+          'Take free Potato seeds from the general store, walk to the allotment patches in the clearing south of the castle, and plant a seed in an empty patch (8 XP).',
+        itemIds: ['potato_seed', 'potato'],
+      },
+      {
+        level: 1,
+        action:
+          'Wait for the crop to grow through its stages, then harvest the fully grown patch for several Potatoes (9 XP each). The patch empties and can be replanted.',
+        itemIds: ['potato'],
+      },
+      {
+        level: 5,
+        action: 'Farming 5 lets you plant Onion seeds for Onions (10.5 XP per onion harvested).',
+        itemIds: ['onion_seed', 'onion'],
+      },
+      {
+        level: 7,
+        action: 'Farming 7 lets you plant Cabbage seeds for Cabbages (11.5 XP per cabbage harvested).',
+        itemIds: ['cabbage_seed', 'cabbage'],
+      },
+    ],
+    notes: [
+      'Allotment patches sit in the open clearing just south of the Lumbridge castle.',
+      'Seeds (potato, onion, cabbage) are stocked free at the Lumbridge general store.',
+      'Crops grow on their own as game ticks pass; you can wander off and come back to harvest.',
+      'Harvested produce is edible food that heals a little when eaten.',
+    ],
   },
   construction: {
     skill: 'construction',

@@ -7,6 +7,11 @@ export { createBankBoothMesh } from './bankBooth'
 export { createChickenMesh } from './chickenMesh'
 export { createCookingRangeMesh } from './cookingRange'
 export { createCowMesh } from './cowMesh'
+export {
+  createFarmPatchMesh,
+  updateFarmPatchGrowth,
+  type FarmPatchView,
+} from './farmPatch'
 export { createFireMesh, updateFireFlicker } from './fire'
 export { createFishingSpotMesh, updateFishingSpotPulse } from './fishingSpot'
 export { createFurnaceMesh } from './furnace'
