@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react'
 import type { Game } from '../../engine'
 import { getItemDef } from '../../engine'
 import { ContextMenu, type MenuOption, type MenuState } from '../ContextMenu'
-import { itemColor } from '../itemColor'
+import { ItemIcon } from '../icons/ItemIcon'
 import type { MessageStore } from '../messages'
 
 /**
@@ -63,7 +63,6 @@ export function ShopPanel({
               type="button"
               key={itemId}
               className="item-slot filled"
-              style={{ background: itemColor(itemId) }}
               title={`${item.name} — ${priceLabel}`}
               onClick={() => {
                 shop.buy(itemId, 1)
@@ -77,7 +76,7 @@ export function ShopPanel({
                 ])
               }
             >
-              <span className="item-slot-name">{item.name}</span>
+              <ItemIcon itemId={itemId} />
               <span className="item-slot-qty">{priceLabel}</span>
             </button>
           )

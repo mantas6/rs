@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react'
 import type { Game } from '../../engine'
 import { getItemDef } from '../../engine'
 import { ContextMenu, type MenuOption, type MenuState } from '../ContextMenu'
-import { itemColor } from '../itemColor'
+import { ItemIcon } from '../icons/ItemIcon'
 import type { MessageStore } from '../messages'
 
 /**
@@ -59,7 +59,6 @@ export function BankPanel({
               type="button"
               key={itemId}
               className="item-slot filled"
-              style={{ background: itemColor(itemId) }}
               title={`${def.name} x ${quantity}`}
               onClick={() => {
                 bank.withdraw(itemId, 1)
@@ -73,7 +72,7 @@ export function BankPanel({
                 ])
               }
             >
-              <span className="item-slot-name">{def.name}</span>
+              <ItemIcon itemId={itemId} />
               <span className="item-slot-qty">{quantity}</span>
             </button>
           )
@@ -89,7 +88,6 @@ export function BankPanel({
               type="button"
               key={index}
               className="item-slot filled"
-              style={{ background: itemColor(slot.itemId) }}
               title={getItemDef(slot.itemId).name}
               onClick={() => {
                 bank.deposit(slot.itemId, 1)
@@ -107,7 +105,7 @@ export function BankPanel({
                 ])
               }}
             >
-              <span className="item-slot-name">{getItemDef(slot.itemId).name}</span>
+              <ItemIcon itemId={slot.itemId} />
               {slot.quantity > 1 && <span className="item-slot-qty">{slot.quantity}</span>}
             </button>
           ) : (

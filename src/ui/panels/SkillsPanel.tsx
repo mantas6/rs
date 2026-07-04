@@ -1,5 +1,6 @@
 import type { Game, SkillName } from '../../engine'
 import { MAX_LEVEL, SKILL_NAMES, xpForLevel } from '../../engine'
+import { SkillIcon } from '../icons/SkillIcon'
 
 function title(skill: SkillName): string {
   return skill.charAt(0).toUpperCase() + skill.slice(1)
@@ -22,7 +23,10 @@ export function SkillsPanel({ game }: { game: Game }) {
                 `${(xpForLevel(base + 1) - xp).toLocaleString()} xp to level ${base + 1}`
           return (
             <div key={skill} className="skill-cell" title={tooltip}>
-              <span className="skill-name">{title(skill)}</span>
+              <span className="skill-label">
+                <SkillIcon skill={skill} />
+                <span className="skill-name">{title(skill)}</span>
+              </span>
               <span className={`skill-level${current < base ? ' drained' : ''}`}>
                 {current}/{base}
               </span>

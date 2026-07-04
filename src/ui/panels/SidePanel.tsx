@@ -1,6 +1,14 @@
 import { useState } from 'react'
+import type { ReactElement } from 'react'
 import type { Game } from '../../engine'
 import type { AudioManager } from '../audio'
+import { BackpackIcon } from '../icons/BackpackIcon'
+import { BootIcon } from '../icons/BootIcon'
+import { HelmetIcon } from '../icons/HelmetIcon'
+import { MusicIcon } from '../icons/MusicIcon'
+import { ResetIcon } from '../icons/ResetIcon'
+import { SpeakerIcon } from '../icons/SpeakerIcon'
+import { StatsIcon } from '../icons/StatsIcon'
 import type { MessageStore } from '../messages'
 import { clearStoredSave } from '../saveStorage'
 import { BankPanel } from './BankPanel'
@@ -12,6 +20,12 @@ import { SkillsPanel } from './SkillsPanel'
 type Tab = 'inventory' | 'skills' | 'equipment'
 
 const TABS: readonly Tab[] = ['inventory', 'skills', 'equipment']
+
+const TAB_ICONS: Record<Tab, () => ReactElement> = {
+  inventory: () => <BackpackIcon />,
+  skills: () => <StatsIcon />,
+  equipment: () => <HelmetIcon color="currentColor" />,
+}
 
 /**
  * OSRS-style side panel: status row (HP orb, run toggle, audio toggles,
@@ -45,47 +59,52 @@ export function SidePanel({
         <button
           type="button"
           className={`run-toggle${game.player.running ? ' active' : ''}`}
+          title={game.player.running ? 'Run: on' : 'Run: off'}
           onClick={() => {
             game.player.setRun(!game.player.running)
             refresh()
           }}
         >
-          {game.player.running ? 'Run: on' : 'Run: off'}
+          <BootIcon color="currentColor" />
+          Run
         </button>
         <button
           type="button"
           className={`run-toggle audio-toggle${audio.musicEnabled ? ' active' : ''}`}
           title={audio.musicEnabled ? 'Music: on' : 'Music: off'}
+          aria-label={audio.musicEnabled ? 'Music: on' : 'Music: off'}
           onClick={() => {
             audio.setMusicEnabled(!audio.musicEnabled)
             refresh()
           }}
         >
-          Music
+          <MusicIcon />
         </button>
         <button
           type="button"
           className={`run-toggle audio-toggle${audio.sfxEnabled ? ' active' : ''}`}
           title={audio.sfxEnabled ? 'Sound effects: on' : 'Sound effects: off'}
+          aria-label={audio.sfxEnabled ? 'Sound effects: on' : 'Sound effects: off'}
           onClick={() => {
             audio.setSfxEnabled(!audio.sfxEnabled)
             if (audio.sfxEnabled) audio.play('click')
             refresh()
           }}
         >
-          Sfx
+          <SpeakerIcon />
         </button>
         <button
           type="button"
-          className="run-toggle"
+          className="run-toggle audio-toggle"
           title="Delete the save and start a fresh game"
+          aria-label="New game"
           onClick={() => {
             if (!window.confirm('Delete your save and start a new game?')) return
             clearStoredSave()
             window.location.reload()
           }}
         >
-          New game
+          <ResetIcon />
         </button>
         <span className="tick-counter">Tick {game.tickCount}</span>
       </div>
@@ -102,11 +121,13 @@ export function SidePanel({
                 type="button"
                 key={name}
                 className={tab === name ? 'active' : ''}
+                title={name.charAt(0).toUpperCase() + name.slice(1)}
                 onClick={() => {
                   audio.play('click')
                   setTab(name)
                 }}
               >
+                {TAB_ICONS[name]()}
                 {name.charAt(0).toUpperCase() + name.slice(1)}
               </button>
             ))}

@@ -4,7 +4,7 @@ import { cookingRecipes, firemakingDefs } from '../../content/recipes'
 import type { CookingSource, Game } from '../../engine'
 import { chebyshev, getItemDef } from '../../engine'
 import { ContextMenu, type MenuOption, type MenuState } from '../ContextMenu'
-import { itemColor } from '../itemColor'
+import { ItemIcon } from '../icons/ItemIcon'
 import type { MessageStore } from '../messages'
 
 /** Nearest valid cooking source (burning fire or range), or null. */
@@ -104,12 +104,11 @@ export function InventoryPanel({
               type="button"
               key={index}
               className="item-slot filled"
-              style={{ background: itemColor(slot.itemId) }}
               title={getItemDef(slot.itemId).name}
               onClick={() => defaultAction(index)}
               onContextMenu={(e) => openMenu(e, index)}
             >
-              <span className="item-slot-name">{getItemDef(slot.itemId).name}</span>
+              <ItemIcon itemId={slot.itemId} />
               {slot.quantity > 1 && <span className="item-slot-qty">{slot.quantity}</span>}
             </button>
           ) : (

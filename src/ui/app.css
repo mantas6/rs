@@ -118,6 +118,10 @@ button {
 }
 
 .run-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   background: #2e2718;
   color: #e8dcc0;
   border: 1px solid #5a4a2f;
@@ -153,12 +157,16 @@ button {
 
 .tab-strip button {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   background: #2e2718;
   color: #cbbb99;
   border: 1px solid #5a4a2f;
   border-radius: 4px 4px 0 0;
-  padding: 6px 0;
-  font-size: 12px;
+  padding: 6px 2px;
+  font-size: 11px;
 }
 
 .tab-strip button.active {
@@ -196,16 +204,15 @@ button {
 
 .item-slot.filled {
   border-color: #1a140c;
+  background: #46392a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.item-slot-name {
-  display: block;
-  font-size: 9px;
-  line-height: 1.15;
-  font-weight: 600;
-  color: #14100a;
-  text-align: left;
-  word-break: break-word;
+.item-slot.filled .icon {
+  width: 76%;
+  height: 76%;
 }
 
 .item-slot-qty {
@@ -235,6 +242,18 @@ button {
   border-radius: 3px;
   padding: 3px 6px;
   font-size: 11px;
+}
+
+.skill-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.skill-cell .icon {
+  width: 12px;
+  height: 12px;
 }
 
 .skill-name {
@@ -287,6 +306,17 @@ button {
 .equip-slot-name {
   text-transform: capitalize;
   color: #9c8d72;
+}
+
+.equip-item-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.equip-row .icon {
+  width: 13px;
+  height: 13px;
 }
 
 .equip-bonuses {
@@ -361,6 +391,15 @@ button {
   color: #9c8d72;
   align-self: center;
   padding: 8px 0;
+}
+
+/* ---- Icons ---- */
+
+/* Default inline icon size; contexts above override where needed. */
+.icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 /* ---- Context menu ---- */

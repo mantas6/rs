@@ -1,5 +1,6 @@
 import type { AttackStyle, Game } from '../../engine'
 import { EQUIPMENT_SLOTS, getItemDef } from '../../engine'
+import { ItemIcon } from '../icons/ItemIcon'
 import type { MessageStore } from '../messages'
 
 const ATTACK_STYLES: readonly AttackStyle[] = [
@@ -45,7 +46,14 @@ export function EquipmentPanel({
             >
               <span className="equip-slot-name">{slot}</span>
               <span className="equip-item-name">
-                {item ? getItemDef(item.itemId).name : '—'}
+                {item ? (
+                  <>
+                    <ItemIcon itemId={item.itemId} />
+                    {getItemDef(item.itemId).name}
+                  </>
+                ) : (
+                  '—'
+                )}
               </span>
             </button>
           )
