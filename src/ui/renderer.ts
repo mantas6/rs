@@ -7,10 +7,34 @@
 // the renderer interpolates between the previous and current tile per
 // entity so motion looks smooth (a pure UI concern — the engine only ever
 // knows whole tiles).
+//
+// Mesh construction lives in src/ui/sprites/ (one file per visual object);
+// this class only orchestrates: scene setup, camera, lighting, picking,
+// tick interpolation, and calling the sprite factories/updaters.
 import * as THREE from 'three'
 import type { NpcDef } from '../content/types'
-import type { Fire, Game, GroundItem, Npc, ResourceNode, WorldObject } from '../engine'
+import type { Fire, Game, GroundItem, Npc, ResourceNode } from '../engine'
 import { getItemDef, TICK_MS } from '../engine'
+import {
+  createBankBoothMesh,
+  createCookingRangeMesh,
+  createFireMesh,
+  createFishingSpotMesh,
+  createGroundItemMesh,
+  createGroundTiles,
+  createHoverOutline,
+  createNpcMesh,
+  createPlayerMesh,
+  createRockMesh,
+  createTreeMesh,
+  SpriteResources,
+  tileGroup,
+  updateFireFlicker,
+  updateFishingSpotPulse,
+  updateGroundItemSpin,
+  updateHealthBar,
+  type NpcView,
+} from './sprites'
 
 /** Canvas viewport size in pixels. */
 export const VIEW_W = 720
@@ -55,28 +79,6 @@ export function describeTile(game: Game, x: number, y: number): string | null {
   return null
 }
 
-// ---- Palette (matches the old 2D renderer where sensible) ----
-
-const GRASS_A = 0x3d5c33
-const GRASS_B = 0x38552f
-const BLOCKED = 0x2c3540
-const PLAYER_BODY = 0x3b6ea5
-const PLAYER_HEAD = 0xe8d5b5
-
-const NPC_COLORS: Record<string, number> = {
-  goblin: 0x6ab04c,
-  cow: 0x8d6e63,
-  chicken: 0xf5f0e6,
-  giant_rat: 0x8d8d8d,
-}
-const NPC_FALLBACK = 0xc678dd
-
-const ORE_SPECKLE: Record<string, number> = {
-  copper_rock: 0xc97e3d,
-  tin_rock: 0xcfd4dc,
-  iron_rock: 0xa04a3c,
-}
-
 // ---- Camera constants (OSRS-style orbit around the player) ----
 
 const CAM_MIN_DIST = 5
@@ -93,12 +95,6 @@ interface MoverLerp {
   py: number
   cx: number
   cy: number
-}
-
-interface NpcView {
-  group: THREE.Group
-  hpBar: THREE.Group
-  hpFill: THREE.Mesh
 }
 
 interface NodeView {
@@ -121,9 +117,8 @@ export class GameRenderer {
   private readonly camera: THREE.PerspectiveCamera
   private readonly raycaster = new THREE.Raycaster()
 
-  // Shared resources, tracked so dispose() can free GPU memory.
-  private readonly geometries: THREE.BufferGeometry[] = []
-  private readonly materialCache = new Map<string, THREE.Material>()
+  // Shared sprite resources, tracked so dispose() can free GPU memory.
+  private readonly resources = new SpriteResources()
 
   // Static ground meshes plus instance-index → tile lookup for picking.
   private groundMesh!: THREE.InstancedMesh
@@ -211,8 +206,10 @@ export class GameRenderer {
     this.buildGround()
     this.buildStaticObjects()
     this.buildNodes()
-    this.buildPlayer()
-    this.buildHover()
+    this.playerGroup = createPlayerMesh(this.resources, game.player.x, game.player.y)
+    this.dynamicRoot.add(this.playerGroup)
+    this.hoverMesh = createHoverOutline(this.resources)
+    this.scene.add(this.hoverMesh)
     this.scene.add(this.dynamicRoot)
 
     // Snapshot mover positions once per engine tick for interpolation.
@@ -234,176 +231,43 @@ export class GameRenderer {
     this.rafId = requestAnimationFrame(loop)
   }
 
-  // ---- Resource helpers ----
-
-  private geo<T extends THREE.BufferGeometry>(geometry: T): T {
-    this.geometries.push(geometry)
-    return geometry
-  }
-
-  /** Cached Lambert material per color/options (freed in dispose). */
-  private mat(color: number, opts?: { transparent?: boolean; opacity?: number }): THREE.Material {
-    const key = `${color}:${opts?.opacity ?? 1}`
-    let material = this.materialCache.get(key)
-    if (!material) {
-      material = new THREE.MeshLambertMaterial({
-        color,
-        transparent: opts?.transparent ?? false,
-        opacity: opts?.opacity ?? 1,
-      })
-      this.materialCache.set(key, material)
-    }
-    return material
-  }
-
-  private mesh(geometry: THREE.BufferGeometry, color: number, y: number): THREE.Mesh {
-    const mesh = new THREE.Mesh(geometry, this.mat(color))
-    mesh.position.y = y
-    return mesh
-  }
-
   // ---- Static scene construction ----
 
-  /** Walkable tiles: instanced checkerboard planes. Blocked: gray boxes. */
   private buildGround(): void {
-    const world = this.game.world
-    const walk: Hover[] = []
-    const block: Hover[] = []
-    for (let y = 0; y < world.height; y++) {
-      for (let x = 0; x < world.width; x++) {
-        // Node/object tiles render as grass too (the mesh sits on top).
-        if (world.isWalkable(x, y) || world.nodeAt(x, y) || world.objectAt(x, y)) {
-          walk.push({ x, y })
-        } else {
-          block.push({ x, y })
-        }
-      }
-    }
-    this.groundTiles = walk
-    this.blockedTiles = block
-
-    const plane = this.geo(new THREE.PlaneGeometry(1, 1))
-    plane.rotateX(-Math.PI / 2)
-    this.groundMesh = new THREE.InstancedMesh(
-      plane,
-      new THREE.MeshLambertMaterial({ color: 0xffffff }),
-      walk.length,
-    )
-    const m = new THREE.Matrix4()
-    const color = new THREE.Color()
-    walk.forEach((tile, i) => {
-      m.setPosition(tile.x + 0.5, 0, tile.y + 0.5)
-      this.groundMesh.setMatrixAt(i, m)
-      this.groundMesh.setColorAt(i, color.setHex((tile.x + tile.y) % 2 === 0 ? GRASS_A : GRASS_B))
-    })
-    this.scene.add(this.groundMesh)
-
-    const box = this.geo(new THREE.BoxGeometry(1, 0.8, 1))
-    this.blockedMesh = new THREE.InstancedMesh(
-      box,
-      new THREE.MeshLambertMaterial({ color: BLOCKED }),
-      block.length,
-    )
-    block.forEach((tile, i) => {
-      m.setPosition(tile.x + 0.5, 0.4, tile.y + 0.5)
-      this.blockedMesh.setMatrixAt(i, m)
-    })
-    this.scene.add(this.blockedMesh)
-    // Material of the instanced meshes is not in materialCache; track it.
-    this.materialCache.set('ground', this.groundMesh.material as THREE.Material)
-    this.materialCache.set('blocked', this.blockedMesh.material as THREE.Material)
+    const ground = createGroundTiles(this.resources, this.game.world)
+    this.groundMesh = ground.groundMesh
+    this.blockedMesh = ground.blockedMesh
+    this.groundTiles = ground.groundTiles
+    this.blockedTiles = ground.blockedTiles
+    this.scene.add(this.groundMesh, this.blockedMesh)
   }
 
-  /** Bank booths (gold) and cooking ranges (dark red) as boxes. */
+  /** Bank booths and cooking ranges parked on their tiles. */
   private buildStaticObjects(): void {
     for (const object of this.game.world.objects) {
-      const group = this.tileGroup(object.position.x, object.position.y)
-      group.add(this.mesh(this.geo(new THREE.BoxGeometry(0.9, 1, 0.9)), this.objectColor(object), 0.5))
+      const { x, y } = object.position
+      const group = object.def.bank
+        ? createBankBoothMesh(this.resources, x, y)
+        : createCookingRangeMesh(this.resources, x, y)
       this.dynamicRoot.add(group)
     }
-  }
-
-  private objectColor(object: WorldObject): number {
-    return object.def.bank ? 0xd4af37 : 0x7a2318
   }
 
   /** Trees (trunk + canopy / stump), rocks (dodecahedron), fishing rings. */
   private buildNodes(): void {
     for (const node of this.game.world.nodes) {
-      const group = this.tileGroup(node.position.x, node.position.y)
-      const live = new THREE.Group()
-      const depleted = new THREE.Group()
+      const group = tileGroup(node.position.x, node.position.y)
       const skill = node.def.skill
-
-      if (skill === 'woodcutting') {
-        const trunk = this.mesh(this.geo(new THREE.CylinderGeometry(0.12, 0.18, 0.9, 8)), 0x4e342e, 0.45)
-        const canopyColor = node.def.id === 'oak_tree' ? 0x1e5e2a : 0x2e7d32
-        const canopy = this.mesh(this.geo(new THREE.IcosahedronGeometry(0.6, 1)), canopyColor, 1.25)
-        live.add(trunk, canopy)
-        depleted.add(this.mesh(this.geo(new THREE.CylinderGeometry(0.18, 0.22, 0.25, 8)), 0x5d4030, 0.125))
-      } else if (skill === 'mining') {
-        const rock = this.mesh(this.geo(new THREE.DodecahedronGeometry(0.45)), 0x767676, 0.3)
-        rock.scale.y = 0.7
-        const speckle = this.mesh(
-          this.geo(new THREE.DodecahedronGeometry(0.16)),
-          ORE_SPECKLE[node.def.id] ?? 0xffffff,
-          0.55,
-        )
-        speckle.position.x = 0.12
-        live.add(rock, speckle)
-        const bare = this.mesh(this.geo(new THREE.DodecahedronGeometry(0.45)), 0x4c4c4c, 0.3)
-        bare.scale.y = 0.7
-        depleted.add(bare)
-      } else {
-        // Fishing spot: concentric flat rings on the water (never depletes).
-        for (const radius of [0.15, 0.3, 0.45]) {
-          const ring = new THREE.Mesh(
-            this.geo(new THREE.RingGeometry(radius, radius + 0.05, 24)),
-            this.mat(0x4fc3f7, { transparent: true, opacity: 0.8 }),
-          )
-          ring.rotation.x = -Math.PI / 2
-          ring.position.y = 0.03
-          live.add(ring)
-        }
-      }
-
+      const { live, depleted } =
+        skill === 'woodcutting'
+          ? createTreeMesh(this.resources, node.def.id)
+          : skill === 'mining'
+            ? createRockMesh(this.resources, node.def.id)
+            : createFishingSpotMesh(this.resources)
       group.add(live, depleted)
       this.dynamicRoot.add(group)
       this.nodeViews.set(node, { group, live, depleted })
     }
-  }
-
-  /** Blue capsule body + cream head, following the interpolated tile. */
-  private buildPlayer(): void {
-    const group = this.tileGroup(this.game.player.x, this.game.player.y)
-    group.add(this.mesh(this.geo(new THREE.CapsuleGeometry(0.25, 0.55, 4, 12)), PLAYER_BODY, 0.55))
-    group.add(this.mesh(this.geo(new THREE.SphereGeometry(0.16, 12, 12)), PLAYER_HEAD, 1.1))
-    this.playerGroup = group
-    this.dynamicRoot.add(group)
-  }
-
-  private buildHover(): void {
-    const points = [
-      new THREE.Vector3(-0.5, 0, -0.5),
-      new THREE.Vector3(0.5, 0, -0.5),
-      new THREE.Vector3(0.5, 0, 0.5),
-      new THREE.Vector3(-0.5, 0, 0.5),
-    ]
-    const geometry = this.geo(new THREE.BufferGeometry().setFromPoints(points))
-    const material = new THREE.LineBasicMaterial({ color: 0xf4d03f })
-    this.materialCache.set('hoverLine', material)
-    this.hoverMesh = new THREE.LineLoop(geometry, material)
-    this.hoverMesh.position.y = 0.04
-    this.hoverMesh.visible = false
-    this.scene.add(this.hoverMesh)
-  }
-
-  /** A group parked on a tile center, tagged with the tile for picking. */
-  private tileGroup(x: number, y: number): THREE.Group {
-    const group = new THREE.Group()
-    group.position.set(x + 0.5, 0, y + 0.5)
-    group.userData.tile = { x, y }
-    return group
   }
 
   // ---- Tick interpolation ----
@@ -471,7 +335,7 @@ export class GameRenderer {
     for (const npc of game.npcs) {
       let view = this.npcViews.get(npc)
       if (!view) {
-        view = this.buildNpc(npc)
+        view = createNpcMesh(this.resources, npc)
         this.npcViews.set(npc, view)
         this.dynamicRoot.add(view.group)
       }
@@ -480,24 +344,14 @@ export class GameRenderer {
       const pos = this.moverPos(npc, npc.x, npc.y)
       view.group.position.set(pos.x + 0.5, 0, pos.y + 0.5)
       view.group.userData.tile = { x: npc.x, y: npc.y }
-      const maxHp = npc.def.combat.hitpoints
-      view.hpBar.visible = npc.currentHp < maxHp
-      if (view.hpBar.visible) {
-        view.hpFill.scale.x = Math.max(npc.currentHp / maxHp, 0.001)
-        view.hpBar.quaternion.copy(this.camera.quaternion)
-      }
+      updateHealthBar(view, npc.currentHp, npc.def.combat.hitpoints, this.camera.quaternion)
     }
 
     // Resource nodes: swap live/depleted looks; pulse fishing rings.
     for (const [node, view] of this.nodeViews) {
       view.live.visible = !node.depleted
       view.depleted.visible = node.depleted
-      if (node.def.skill === 'fishing') {
-        view.live.children.forEach((ring, i) => {
-          const s = 1 + 0.15 * Math.sin(now / 500 + i)
-          ring.scale.set(s, s, 1)
-        })
-      }
+      if (node.def.skill === 'fishing') updateFishingSpotPulse(view.live, now)
     }
 
     // Fires: add new, remove expired, flicker the flames.
@@ -511,14 +365,11 @@ export class GameRenderer {
     for (const fire of game.fires.fires) {
       let group = this.fireViews.get(fire)
       if (!group) {
-        group = this.tileGroup(fire.position.x, fire.position.y)
-        group.add(this.mesh(this.geo(new THREE.ConeGeometry(0.3, 0.6, 8)), 0xe25822, 0.3))
-        group.add(this.mesh(this.geo(new THREE.ConeGeometry(0.15, 0.4, 8)), 0xffb347, 0.45))
+        group = createFireMesh(this.resources, fire)
         this.fireViews.set(fire, group)
         this.dynamicRoot.add(group)
       }
-      const flicker = 1 + 0.12 * Math.sin(now / 90 + fire.position.x * 7 + fire.position.y * 13)
-      group.scale.y = flicker
+      updateFireFlicker(group, fire, now)
     }
 
     // Ground items: yellow octahedra that slowly spin.
@@ -532,50 +383,12 @@ export class GameRenderer {
     for (const item of game.groundItems.items) {
       let view = this.itemViews.get(item)
       if (!view) {
-        const group = this.tileGroup(item.x, item.y)
-        group.add(this.mesh(this.geo(new THREE.OctahedronGeometry(0.16)), 0xf4d03f, 0.2))
-        this.itemViews.set(item, group)
-        this.dynamicRoot.add(group)
-        view = group
+        view = createGroundItemMesh(this.resources, item)
+        this.itemViews.set(item, view)
+        this.dynamicRoot.add(view)
       }
-      view.rotation.y = now / 800
+      updateGroundItemSpin(view, now)
     }
-  }
-
-  private buildNpc(npc: Npc): NpcView {
-    const group = this.tileGroup(npc.x, npc.y)
-    const color = NPC_COLORS[npc.def.id] ?? NPC_FALLBACK
-    let barHeight = 1
-    if (npc.def.id === 'chicken') {
-      group.add(this.mesh(this.geo(new THREE.BoxGeometry(0.32, 0.32, 0.32)), color, 0.18))
-      barHeight = 0.6
-    } else if (npc.def.id === 'cow') {
-      group.add(this.mesh(this.geo(new THREE.BoxGeometry(0.5, 0.5, 0.8)), color, 0.35))
-      const patch = this.mesh(this.geo(new THREE.BoxGeometry(0.52, 0.25, 0.3)), 0xf5f0e6, 0.42)
-      patch.position.z = 0.15
-      group.add(patch)
-      barHeight = 0.9
-    } else if (npc.def.id === 'giant_rat') {
-      group.add(this.mesh(this.geo(new THREE.BoxGeometry(0.36, 0.28, 0.68)), color, 0.16))
-      barHeight = 0.6
-    } else {
-      group.add(this.mesh(this.geo(new THREE.CapsuleGeometry(0.2, 0.4, 4, 10)), color, 0.42))
-    }
-
-    // Billboarded hp bar: red background + left-anchored green fill.
-    const hpBar = new THREE.Group()
-    hpBar.position.y = barHeight + 0.25
-    const barGeo = this.geo(new THREE.PlaneGeometry(0.8, 0.09))
-    const back = new THREE.Mesh(barGeo, this.mat(0xc0392b))
-    const fillGeo = this.geo(new THREE.PlaneGeometry(0.8, 0.09))
-    fillGeo.translate(0.4, 0, 0) // Anchor at the left edge so scale.x shrinks rightward.
-    const fill = new THREE.Mesh(fillGeo, this.mat(0x27ae60))
-    fill.position.set(-0.4, 0, 0.001)
-    hpBar.add(back, fill)
-    hpBar.visible = false
-    group.add(hpBar)
-
-    return { group, hpBar, hpFill: fill }
   }
 
   private updateCamera(dt: number): void {
@@ -658,8 +471,7 @@ export class GameRenderer {
     window.removeEventListener('mouseup', this.onMouseUp)
     window.removeEventListener('keydown', this.onKeyDown)
     window.removeEventListener('keyup', this.onKeyUp)
-    for (const geometry of this.geometries) geometry.dispose()
-    for (const material of this.materialCache.values()) material.dispose()
+    this.resources.dispose()
     this.groundMesh.dispose()
     this.blockedMesh.dispose()
     this.renderer.dispose()
