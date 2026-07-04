@@ -40,8 +40,10 @@ describe('lumbridge map connectivity', () => {
   const reachable = reachableFromSpawn(game)
 
   it('has the expected dimensions and a walkable spawn', () => {
-    expect(lumbridgeMap.width).toBe(48)
-    expect(lumbridgeMap.height).toBe(40)
+    expect(lumbridgeMap.width).toBe(88)
+    expect(lumbridgeMap.height).toBe(72)
+    // The town spawn is unchanged by the map expansion.
+    expect(game.spawn).toEqual({ x: 13, y: 10 })
     expect(world.isWalkable(game.spawn.x, game.spawn.y)).toBe(true)
   })
 
@@ -87,13 +89,14 @@ describe('lumbridge map connectivity', () => {
     }
   })
 
-  it('the river blocks and the bridge crosses it', () => {
-    // Water column x30..33 is blocked away from the bridge...
-    for (const y of [10, 15, 25, 35]) {
+  it('the river blocks and both bridges cross it', () => {
+    // Water column x30..33 is blocked away from the bridges, the full height...
+    for (const y of [10, 15, 25, 35, 45, 60, 68]) {
       for (let x = 30; x <= 33; x++) expect(world.isWalkable(x, y)).toBe(false)
     }
-    // ...and the bridge rows y19..20 are walkable bank to bank.
-    for (const y of [19, 20]) {
+    // ...and both bridges (northern y19..20, southern y54..55) are walkable
+    // bank to bank so the enlarged east/west banks stay linked.
+    for (const y of [19, 20, 54, 55]) {
       for (let x = 28; x <= 36; x++) expect(world.isWalkable(x, y)).toBe(true)
     }
   })
