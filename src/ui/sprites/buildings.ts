@@ -396,12 +396,19 @@ export function createBuildings(res: SpriteResources, world: World): BuildingsVi
 
   // --- Roofs: one pitched thatch roof per building, auto-hidden when inside ---
   if (buildings.length > 0) {
+    // Semi-transparent so the interior (floor, objects, NPCs) shows through
+    // from outside — a visual cue that the building can be entered. When the
+    // player steps inside, the renderer hides the roof entirely (roof removal).
+    // depthWrite is off so whatever is under the roof renders through it.
     const roofMat = res.matBy(
       'buildingRoof',
       () =>
         new THREE.MeshLambertMaterial({
           map: makeThatchTexture(res),
           side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.5,
+          depthWrite: false,
         }),
     )
     for (const b of buildings) {
