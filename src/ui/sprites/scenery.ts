@@ -1,5 +1,7 @@
-// Decorative scenery scatter: foliage (bushes, flowers, grass tufts, ferns)
-// and riverbank fences sprinkled across the map to make the world feel alive.
+// Decorative scenery scatter: foliage (bushes, flowers, grass tufts, ferns),
+// riverbank fences, and building props (barrels, crates, sacks, lamp posts and
+// signposts) sprinkled across the map to make the world feel alive and to give
+// the otherwise-bare buildings some furnishing.
 //
 // Purely a UI concern (Approach A): the engine and content are untouched. The
 // scatter is driven entirely by the tile map the renderer already built —
@@ -21,13 +23,18 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { World } from '../../engine'
+import { barrelParts } from './barrel'
 import { bushParts } from './bush'
+import { crateParts } from './crate'
 import { fenceParts } from './fence'
 import { fernParts } from './fern'
 import { flowerParts } from './flowers'
 import { createRng, type FoliagePart } from './foliage'
 import { grassTuftParts } from './grassTuft'
+import { lampPostParts } from './lampPost'
 import type { SpriteResources, TilePos } from './resources'
+import { sackParts } from './sack'
+import { signpostParts } from './signpost'
 
 export interface SceneryView {
   /** Root of all decorations; added straight to the scene (never pickable). */
@@ -97,16 +104,21 @@ export function createScenery(
   res: SpriteResources,
   world: World,
   grassTiles: readonly TilePos[],
+  floorTiles: readonly TilePos[],
   waterTiles: readonly TilePos[],
+  stoneTiles: readonly TilePos[],
 ): SceneryView {
   const sway = { value: 0 }
   const group = new THREE.Group()
 
   const waterKeys = new Set(waterTiles.map((t) => t.y * world.width + t.x))
-  // Merge buckets keyed by colour: foliage (swaying) and fence (rigid) kept
-  // apart so their differing vertex attributes never clash during merge.
+  const stoneKeys = new Set(stoneTiles.map((t) => t.y * world.width + t.x))
+  // Merge buckets keyed by colour: foliage (swaying) kept apart from the rigid
+  // fences and building props so their differing vertex attributes never clash
+  // during merge (props/fences carry no baked `aSway`).
   const foliageByColor = new Map<number, THREE.BufferGeometry[]>()
   const fenceByColor = new Map<number, THREE.BufferGeometry[]>()
+  const propByColor = new Map<number, THREE.BufferGeometry[]>()
 
   const bucket = (map: Map<number, THREE.BufferGeometry[]>, color: number, g: THREE.BufferGeometry): void => {
     const list = map.get(color)
@@ -152,10 +164,56 @@ export function createScenery(
     }
   }
 
+  const placeProp = (parts: FoliagePart[], rot: number, wx: number, wz: number): void => {
+    for (const part of parts) {
+      part.geometry.rotateY(rot)
+      part.geometry.translate(wx, 0, wz)
+      bucket(propByColor, part.color, nonIndexed(part.geometry))
+    }
+  }
+
+  /**
+   * Furnish a wall-hugging tile with a building prop. Returns true when one was
+   * placed (so foliage skips the tile). Props sit against a neighbouring stone
+   * wall — barrels/crates/sacks lean on the wall, lamp posts and signposts
+   * stand a touch prouder — so they read as town dressing, not clutter.
+   */
+  const tryPlaceProp = (x: number, y: number, chance: number): boolean => {
+    const walls = FENCE_EDGES.filter((e) => stoneKeys.has((y + e.dy) * world.width + (x + e.dx)))
+    if (walls.length === 0 || h01(x, y, 21) >= chance) return false
+    const edge = walls[Math.floor(h01(x, y, 22) * walls.length)]
+    const rng = createRng(hashInt(x, y, 23))
+    const t = h01(x, y, 20)
+    const parts =
+      t < 0.34
+        ? barrelParts(rng)
+        : t < 0.6
+          ? crateParts(rng)
+          : t < 0.78
+            ? sackParts(rng)
+            : t < 0.9
+              ? lampPostParts()
+              : signpostParts()
+    // Face away from the wall (into the room/street), with a little jitter.
+    const rot = Math.atan2(-edge.dx, -edge.dy) + (h01(x, y, 24) - 0.5) * 0.5
+    placeProp(parts, rot, x + 0.5 + edge.dx * 0.3, y + 0.5 + edge.dy * 0.3)
+    return true
+  }
+
+  // Interior floors: furnish along the walls, but never with foliage — a room
+  // gets barrels/crates/sacks/lamps, not bushes and grass tufts.
+  for (const { x, y } of floorTiles) {
+    if (world.nodeAt(x, y) || world.objectAt(x, y)) continue
+    tryPlaceProp(x, y, 0.28)
+  }
+
   for (const { x, y } of grassTiles) {
     // Never decorate interactive tiles (trees, rocks, fishing spots, bank,
     // shop, range) — their meshes and pickability must stay clear.
     if (world.nodeAt(x, y) || world.objectAt(x, y)) continue
+
+    // A building prop against an outdoor wall wins the tile over foliage.
+    if (tryPlaceProp(x, y, 0.14)) continue
 
     // Foliage: lush along edges (next to walls/water/blocked), sparse and low
     // in the open so it never crowds the walkable interior or hides entities.
@@ -211,6 +269,7 @@ export function createScenery(
   }
   flush(foliageByColor, (color) => swayMaterial(res, color, sway))
   flush(fenceByColor, (color) => res.mat(color))
+  flush(propByColor, (color) => res.mat(color))
 
   return { group, sway }
 }

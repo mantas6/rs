@@ -204,9 +204,11 @@ export class GameRenderer {
   // Static ground meshes plus instance-index → tile lookup for picking.
   // Grass + water are flat planes; stone walls are raised boxes.
   private groundMesh!: THREE.InstancedMesh
+  private floorMesh!: THREE.InstancedMesh
   private waterMesh!: THREE.InstancedMesh
   private stoneMesh!: THREE.InstancedMesh
   private groundTiles: Hover[] = []
+  private floorTiles: Hover[] = []
   private waterTiles: Hover[] = []
   private stoneTiles: Hover[] = []
   /** Keys (y*width + x) of raised stone tiles, for the hover-outline height. */
@@ -434,15 +436,17 @@ export class GameRenderer {
     const anisotropy = this.renderer.capabilities.getMaxAnisotropy()
     const ground = createGroundTiles(this.resources, this.game.world, anisotropy)
     this.groundMesh = ground.groundMesh
+    this.floorMesh = ground.floorMesh
     this.waterMesh = ground.waterMesh
     this.stoneMesh = ground.stoneMesh
     this.groundTiles = ground.groundTiles
+    this.floorTiles = ground.floorTiles
     this.waterTiles = ground.waterTiles
     this.stoneTiles = ground.stoneTiles
     this.waterAnim = ground.water
     const width = this.game.world.width
     this.stoneTileKeys = new Set(this.stoneTiles.map((t) => t.y * width + t.x))
-    this.scene.add(this.groundMesh, this.waterMesh, this.stoneMesh)
+    this.scene.add(this.groundMesh, this.floorMesh, this.waterMesh, this.stoneMesh)
   }
 
   /** Bank booths, shop counters, cooking ranges, furnaces and anvils on their tiles. */
@@ -485,7 +489,14 @@ export class GameRenderer {
    * never in the pick ray list — decorations can't intercept clicks.
    */
   private buildScenery(): void {
-    this.scenery = createScenery(this.resources, this.game.world, this.groundTiles, this.waterTiles)
+    this.scenery = createScenery(
+      this.resources,
+      this.game.world,
+      this.groundTiles,
+      this.floorTiles,
+      this.waterTiles,
+      this.stoneTiles,
+    )
     this.scene.add(this.scenery.group)
   }
 
@@ -825,12 +836,15 @@ export class GameRenderer {
     )
     this.raycaster.setFromCamera(ndc, this.camera)
     const hits = this.raycaster.intersectObjects(
-      [this.dynamicRoot, this.groundMesh, this.waterMesh, this.stoneMesh],
+      [this.dynamicRoot, this.groundMesh, this.floorMesh, this.waterMesh, this.stoneMesh],
       true,
     )
     for (const hit of hits) {
       if (hit.object === this.groundMesh && hit.instanceId !== undefined) {
         return this.groundTiles[hit.instanceId] ?? null
+      }
+      if (hit.object === this.floorMesh && hit.instanceId !== undefined) {
+        return this.floorTiles[hit.instanceId] ?? null
       }
       if (hit.object === this.waterMesh && hit.instanceId !== undefined) {
         return this.waterTiles[hit.instanceId] ?? null

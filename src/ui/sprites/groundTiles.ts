@@ -3,6 +3,7 @@
 // boolean grid into a richer-looking surface entirely on the UI side:
 //
 //   - walkable tiles      → flat grass planes (mottled grass texture)
+//   - building interiors  → flat flagstone planes (dressed-stone floor)
 //   - thick blocked tiles → flat water planes (rippling water texture)
 //   - thin blocked tiles  → raised stone boxes (cracked-rock texture)
 //
@@ -10,6 +11,12 @@
 // belongs to a 2×2 (or larger) solid block of blocked tiles reads as a body
 // of water (the river), while 1-tile-thick blocked lines read as walls. This
 // keeps water/wall telling without any engine or content change.
+//
+// "Building interior" is likewise derived, not authored: a walkable tile that
+// is walled-in on every side AND lies inside the room that holds a functional
+// world object (bank, shop, range, furnace, anvil) is floored with flagstone,
+// so the castle courtyard and kitchen read as furnished rooms rather than bare
+// grass patches. Fenced fields/pens (no object inside) stay grass.
 //
 // Every kind is a single InstancedMesh sharing one material, so the whole
 // map is a handful of draw calls. Per-tile variety comes from `instanceColor`
@@ -27,6 +34,8 @@ const TEX_SIZE = 256
 const STONE_HEIGHT = 0.8
 /** Water sits a hair below the grass so shorelines read as a gentle dip. */
 const WATER_Y = -0.03
+/** Floor sits a hair above the grass so room thresholds never z-fight. */
+const FLOOR_Y = 0.012
 
 /** A texture whose UV offset the renderer scrolls each frame (flowing water). */
 export interface WaterAnimation {
@@ -35,9 +44,11 @@ export interface WaterAnimation {
 
 export interface GroundTiles {
   groundMesh: THREE.InstancedMesh
+  floorMesh: THREE.InstancedMesh
   waterMesh: THREE.InstancedMesh
   stoneMesh: THREE.InstancedMesh
   groundTiles: TilePos[]
+  floorTiles: TilePos[]
   waterTiles: TilePos[]
   stoneTiles: TilePos[]
   water: WaterAnimation
@@ -211,6 +222,53 @@ function makeStoneTexture(anisotropy: number): THREE.CanvasTexture {
   return finishTexture(canvas, anisotropy)
 }
 
+/**
+ * Dressed-flagstone floor for building interiors: a warm sandstone base laid
+ * out as regular flagstones with darker mortar seams and a little wear grain,
+ * so a floored room reads as clearly "indoors" against the green grass and the
+ * cooler grey wall stone.
+ */
+function makeFloorTexture(anisotropy: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = TEX_SIZE
+  const ctx = canvas.getContext('2d')!
+  const rng = mulberry32(0x27d4eb2f)
+
+  ctx.fillStyle = '#b8a07a'
+  ctx.fillRect(0, 0, TEX_SIZE, TEX_SIZE)
+
+  // Flagstones: a grid of tan slabs, each a slightly different shade, set into
+  // darker mortar. A per-row half-tile offset breaks up the grid into courses.
+  const cols = 4
+  const rows = 4
+  const cw = TEX_SIZE / cols
+  const rh = TEX_SIZE / rows
+  ctx.fillStyle = '#6f5c3f'
+  ctx.fillRect(0, 0, TEX_SIZE, TEX_SIZE) // mortar bed shows through the gaps
+  for (let ry = 0; ry < rows; ry++) {
+    const shift = (ry % 2) * (cw / 2)
+    for (let cx = -1; cx < cols; cx++) {
+      const x = cx * cw + shift
+      const y = ry * rh
+      const tone = Math.floor(150 + rng() * 55)
+      ctx.fillStyle = `rgb(${tone + 24}, ${tone + 6}, ${Math.floor(tone * 0.72)})`
+      const gap = 3 + rng() * 2
+      ctx.fillRect(x + gap, y + gap, cw - gap * 2, rh - gap * 2)
+    }
+  }
+
+  // Wear grain + flecks so the slabs are not flat colour.
+  for (let i = 0; i < 900; i++) {
+    const bright = rng() > 0.5
+    ctx.fillStyle = bright
+      ? `rgba(226, 210, 176, ${0.08 + rng() * 0.12})`
+      : `rgba(96, 78, 52, ${0.08 + rng() * 0.16})`
+    ctx.fillRect(rng() * TEX_SIZE, rng() * TEX_SIZE, 1 + rng() * 1.5, 1 + rng() * 1.5)
+  }
+
+  return finishTexture(canvas, anisotropy)
+}
+
 // ---- Tile classification + mesh assembly ----
 
 /** True when the base map blocks (x, y) — the tiles rendered as water/stone. */
@@ -243,6 +301,98 @@ function isWaterTile(world: World, x: number, y: number): boolean {
     }
   }
   return false
+}
+
+/** A stone wall tile: blocked, but not part of a water body — a room's wall. */
+function isStone(world: World, x: number, y: number): boolean {
+  return isBlocked(world, x, y) && !isWaterTile(world, x, y)
+}
+
+/** How far a cardinal scan looks for an enclosing wall (rooms are small). */
+const FLOOR_MAX_WALL_DIST = 13
+/** How far a floor spreads outward from a building's world object. */
+const FLOOR_SPREAD_DEPTH = 40
+
+/**
+ * True when (x, y) sits inside a room: a stone wall is found within
+ * FLOOR_MAX_WALL_DIST tiles in every cardinal direction. Water is not a wall
+ * (so riverside grass never reads as indoors) and each scan stops at the first
+ * wall/water/edge it meets. Open-air tiles fail (no wall on some side), which
+ * is what stops floors leaking out through doorways.
+ */
+function isEnclosed(world: World, x: number, y: number): boolean {
+  const dirs = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ]
+  for (const [dx, dy] of dirs) {
+    let found = false
+    for (let d = 1; d <= FLOOR_MAX_WALL_DIST; d++) {
+      const nx = x + dx * d
+      const ny = y + dy * d
+      if (!world.inBounds(nx, ny)) break
+      if (isWaterTile(world, nx, ny)) break
+      if (isStone(world, nx, ny)) {
+        found = true
+        break
+      }
+    }
+    if (!found) return false
+  }
+  return true
+}
+
+/**
+ * The set of tile keys (y*width + x) that should be floored as a building
+ * interior. A multi-source BFS spreads out from every world object, but expands
+ * ONLY into enclosed tiles (see `isEnclosed`): the walk therefore fills the room
+ * a functional object lives in (castle courtyard, kitchen) yet stops dead at the
+ * doorway — the threshold tile is open on one side, so it fails the enclosure
+ * test and the spread can never leak outdoors or hop into a neighbouring fenced
+ * field/pen that holds no object. Purely derived — no engine or content data.
+ */
+function computeFloorKeys(world: World): Set<number> {
+  const key = (x: number, y: number): number => y * world.width + x
+  const floor = new Set<number>()
+  const visited = new Set<number>()
+  let frontier: TilePos[] = []
+  for (const obj of world.objects) {
+    const k = key(obj.position.x, obj.position.y)
+    if (!visited.has(k)) {
+      visited.add(k)
+      frontier.push({ x: obj.position.x, y: obj.position.y })
+    }
+  }
+
+  const dirs = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ]
+  for (let depth = 0; depth < FLOOR_SPREAD_DEPTH && frontier.length > 0; depth++) {
+    const next: TilePos[] = []
+    for (const { x, y } of frontier) {
+      if (isEnclosed(world, x, y)) floor.add(key(x, y))
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx
+        const ny = y + dy
+        if (!world.inBounds(nx, ny)) continue
+        const nk = key(nx, ny)
+        if (visited.has(nk)) continue
+        if (isStone(world, nx, ny) || isWaterTile(world, nx, ny)) continue
+        // Only walk into enclosed tiles: this confines the fill to the room and
+        // makes the open doorway threshold a natural, grass-floored boundary.
+        if (!isEnclosed(world, nx, ny)) continue
+        visited.add(nk)
+        next.push({ x: nx, y: ny })
+      }
+    }
+    frontier = next
+  }
+  return floor
 }
 
 /**
@@ -279,7 +429,9 @@ export function createGroundTiles(
   world: World,
   anisotropy: number,
 ): GroundTiles {
+  const floorKeys = computeFloorKeys(world)
   const grass: TilePos[] = []
+  const floor: TilePos[] = []
   const water: TilePos[] = []
   const stone: TilePos[] = []
   for (let y = 0; y < world.height; y++) {
@@ -287,6 +439,8 @@ export function createGroundTiles(
       if (isBlocked(world, x, y)) {
         if (isWaterTile(world, x, y)) water.push({ x, y })
         else stone.push({ x, y })
+      } else if (floorKeys.has(y * world.width + x)) {
+        floor.push({ x, y })
       } else {
         grass.push({ x, y })
       }
@@ -294,11 +448,14 @@ export function createGroundTiles(
   }
 
   const grassTex = res.texture(makeGrassTexture(anisotropy))
+  const floorTex = res.texture(makeFloorTexture(anisotropy))
   const waterTex = res.texture(makeWaterTexture(anisotropy))
   const stoneTex = res.texture(makeStoneTexture(anisotropy))
 
   const plane = res.geo(new THREE.PlaneGeometry(1, 1))
   plane.rotateX(-Math.PI / 2)
+  const floorPlane = res.geo(new THREE.PlaneGeometry(1, 1))
+  floorPlane.rotateX(-Math.PI / 2)
   const waterPlane = res.geo(new THREE.PlaneGeometry(1, 1))
   waterPlane.rotateX(-Math.PI / 2)
   const box = res.geo(new THREE.BoxGeometry(1, STONE_HEIGHT, 1))
@@ -307,6 +464,13 @@ export function createGroundTiles(
     plane,
     new THREE.MeshLambertMaterial({ map: grassTex }),
     grass.length,
+  )
+  // Flat flagstone floor for building interiors; a hair above grass so the
+  // shoreline/thresholds never z-fight where a room meets the open ground.
+  const floorMesh = new THREE.InstancedMesh(
+    floorPlane,
+    new THREE.MeshLambertMaterial({ map: floorTex }),
+    floor.length,
   )
   // Phong gives the flat water a soft sun glint; kept opaque so the open sky
   // behind the map never shows through the river at grazing angles.
@@ -330,6 +494,12 @@ export function createGroundTiles(
     tintInstance(groundMesh, i, tile, scratch)
   })
 
+  floor.forEach((tile, i) => {
+    m.setPosition(tile.x + 0.5, FLOOR_Y, tile.y + 0.5)
+    floorMesh.setMatrixAt(i, m)
+    tintInstance(floorMesh, i, tile, scratch)
+  })
+
   water.forEach((tile, i) => {
     m.setPosition(tile.x + 0.5, WATER_Y, tile.y + 0.5)
     waterMesh.setMatrixAt(i, m)
@@ -342,7 +512,7 @@ export function createGroundTiles(
     tintInstance(stoneMesh, i, tile, scratch)
   })
 
-  for (const mesh of [groundMesh, waterMesh, stoneMesh]) {
+  for (const mesh of [groundMesh, floorMesh, waterMesh, stoneMesh]) {
     mesh.instanceMatrix.needsUpdate = true
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
   }
@@ -350,14 +520,17 @@ export function createGroundTiles(
   // Materials here are created directly (not via res.mat); track them so the
   // shared dispose() frees them alongside the textures.
   res.trackMaterial('groundGrass', groundMesh.material as THREE.Material)
+  res.trackMaterial('groundFloor', floorMesh.material as THREE.Material)
   res.trackMaterial('groundWater', waterMesh.material as THREE.Material)
   res.trackMaterial('groundStone', stoneMesh.material as THREE.Material)
 
   return {
     groundMesh,
+    floorMesh,
     waterMesh,
     stoneMesh,
     groundTiles: grass,
+    floorTiles: floor,
     waterTiles: water,
     stoneTiles: stone,
     water: { texture: waterTex },
