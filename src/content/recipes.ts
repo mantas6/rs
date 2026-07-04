@@ -127,6 +127,13 @@ export const smithingRecipes: Record<string, SmithingRecipeDef> = {
     levelRequired: 5,
     xp: 25,
   },
+  bronze_2h_sword: {
+    productItemId: 'bronze_2h_sword',
+    barItemId: 'bronze_bar',
+    barsRequired: 3,
+    levelRequired: 14,
+    xp: 37.5,
+  },
   bronze_full_helm: {
     productItemId: 'bronze_full_helm',
     barItemId: 'bronze_bar',

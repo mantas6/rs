@@ -83,6 +83,8 @@ export interface EquipmentDef {
   attackSpeed?: number
   /** Melee damage type of a weapon. Unarmed/default is 'crush'. */
   attackType?: AttackType
+  /** True for two-handed weapons: equipping one also vacates the shield slot, and a shield cannot be worn while it is equipped. */
+  twoHanded?: boolean
 }
 
 /** Skills that gather resources from world nodes. */

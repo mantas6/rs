@@ -86,6 +86,72 @@ describe('Equipment.equip', () => {
     expect(equipment.equip(inventory, skills, 'bronze_sword')).toBe(false)
   })
 
+  it('equipping a 2h weapon returns a worn shield to the inventory', () => {
+    const { inventory, equipment, skills } = setup()
+    inventory.add('wooden_shield')
+    inventory.add('bronze_2h_sword')
+    equipment.equip(inventory, skills, 'wooden_shield')
+    expect(equipment.equip(inventory, skills, 'bronze_2h_sword')).toBe(true)
+    expect(equipment.get('weapon')).toEqual({ itemId: 'bronze_2h_sword', quantity: 1 })
+    expect(equipment.get('shield')).toBeNull()
+    expect(inventory.count('wooden_shield')).toBe(1)
+    expect(inventory.count('bronze_2h_sword')).toBe(0)
+  })
+
+  it('equipping a shield returns a worn 2h weapon to the inventory', () => {
+    const { inventory, equipment, skills } = setup()
+    inventory.add('bronze_2h_sword')
+    inventory.add('wooden_shield')
+    equipment.equip(inventory, skills, 'bronze_2h_sword')
+    expect(equipment.equip(inventory, skills, 'wooden_shield')).toBe(true)
+    expect(equipment.get('shield')).toEqual({ itemId: 'wooden_shield', quantity: 1 })
+    expect(equipment.get('weapon')).toBeNull()
+    expect(inventory.count('bronze_2h_sword')).toBe(1)
+    expect(inventory.count('wooden_shield')).toBe(0)
+  })
+
+  it('emits equipmentChanged for both slots when a 2h weapon displaces a shield', () => {
+    const { events, inventory, equipment, skills } = setup()
+    inventory.add('wooden_shield')
+    equipment.equip(inventory, skills, 'wooden_shield')
+    inventory.add('bronze_2h_sword')
+    const seen: Array<{ slot: string; item: unknown }> = []
+    events.on('equipmentChanged', (e) => seen.push(e))
+    expect(equipment.equip(inventory, skills, 'bronze_2h_sword')).toBe(true)
+    expect(seen).toEqual([
+      { slot: 'shield', item: null },
+      { slot: 'weapon', item: { itemId: 'bronze_2h_sword', quantity: 1 } },
+    ])
+  })
+
+  it('rolls back when both displaced items cannot fit in the inventory', () => {
+    const { inventory, equipment, skills } = setup()
+    // Wear a one-handed weapon and a shield, then fill the rest of the
+    // inventory so equipping a 2h sword can free only one slot but needs two.
+    inventory.add('bronze_sword')
+    inventory.add('wooden_shield')
+    equipment.equip(inventory, skills, 'bronze_sword')
+    equipment.equip(inventory, skills, 'wooden_shield')
+    inventory.add('bronze_2h_sword')
+    inventory.add('logs', 27)
+    expect(inventory.isFull).toBe(true)
+    const invBefore = inventory.serialize()
+    expect(equipment.equip(inventory, skills, 'bronze_2h_sword')).toBe(false)
+    expect(equipment.get('weapon')).toEqual({ itemId: 'bronze_sword', quantity: 1 })
+    expect(equipment.get('shield')).toEqual({ itemId: 'wooden_shield', quantity: 1 })
+    expect(inventory.serialize()).toEqual(invBefore)
+  })
+
+  it('a one-handed weapon leaves the shield slot untouched', () => {
+    const { inventory, equipment, skills } = setup()
+    inventory.add('wooden_shield')
+    inventory.add('bronze_scimitar')
+    equipment.equip(inventory, skills, 'wooden_shield')
+    expect(equipment.equip(inventory, skills, 'bronze_scimitar')).toBe(true)
+    expect(equipment.get('weapon')).toEqual({ itemId: 'bronze_scimitar', quantity: 1 })
+    expect(equipment.get('shield')).toEqual({ itemId: 'wooden_shield', quantity: 1 })
+  })
+
   it('emits equipmentChanged', () => {
     const { events, inventory, equipment, skills } = setup()
     const seen: Array<{ slot: string; item: unknown }> = []

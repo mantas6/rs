@@ -37,8 +37,9 @@ declare module '../core/eventBus' {
  * Worn equipment. Items move between here and an Inventory via
  * `equip`/`unequip`; requirements are checked against BASE skill levels.
  *
- * TODO: two-handed weapons (must also vacate the shield slot). None exist
- * in the current item set, so equip() treats every weapon as one-handed.
+ * Two-handed weapons (EquipmentDef.twoHanded) occupy the weapon slot but
+ * also block the shield slot: equipping one vacates any worn shield, and
+ * equipping a shield vacates a worn two-handed weapon.
  */
 export class Equipment {
   private readonly items = new Map<EquipmentSlot, ItemStack>()
@@ -47,6 +48,12 @@ export class Equipment {
 
   get(slot: EquipmentSlot): Readonly<ItemStack> | null {
     return this.items.get(slot) ?? null
+  }
+
+  /** True when `stack` is a two-handed weapon (occupies weapon, blocks shield). */
+  private isTwoHanded(stack: ItemStack): boolean {
+    const equipment = getItemDef(stack.itemId).equipment
+    return equipment?.slot === 'weapon' && equipment.twoHanded === true
   }
 
   /**
@@ -73,18 +80,43 @@ export class Equipment {
 
     const slot = def.equipment.slot
     const removed = inventory.removeSlot(slotIndex) as ItemStack
+
+    // Collect every worn slot that must be vacated for this equip: always the
+    // target slot, plus the shield when equipping a two-handed weapon, or the
+    // weapon when equipping a shield over a worn two-handed weapon.
+    const vacated: { slot: EquipmentSlot; stack: ItemStack }[] = []
     const previous = this.items.get(slot) ?? null
-    if (previous) {
-      // Swap: the freed inventory slot takes the old item. Only stackable
-      // equipment could fail here (removal may not free a slot); roll back.
-      const returned = inventory.add(previous.itemId, previous.quantity)
-      if (returned < previous.quantity) {
-        if (returned > 0) inventory.remove(previous.itemId, returned)
+    if (previous) vacated.push({ slot, stack: previous })
+    if (slot === 'weapon' && def.equipment.twoHanded === true) {
+      const shield = this.items.get('shield') ?? null
+      if (shield) vacated.push({ slot: 'shield', stack: shield })
+    } else if (slot === 'shield') {
+      const weapon = this.items.get('weapon') ?? null
+      if (weapon && this.isTwoHanded(weapon)) vacated.push({ slot: 'weapon', stack: weapon })
+    }
+
+    // Return every displaced item to the inventory. The single slot freed by
+    // removing the item being equipped may not hold both displaced items, so
+    // roll back cleanly (restore inventory + equipment) if any fails to fit.
+    const returnedBack: ItemStack[] = []
+    for (const entry of vacated) {
+      const returned = inventory.add(entry.stack.itemId, entry.stack.quantity)
+      if (returned < entry.stack.quantity) {
+        if (returned > 0) inventory.remove(entry.stack.itemId, returned)
+        for (const done of returnedBack) inventory.remove(done.itemId, done.quantity)
         inventory.add(removed.itemId, removed.quantity)
         return false
       }
+      returnedBack.push(entry.stack)
     }
+
+    // Commit: clear every vacated slot, install the new item, then emit for
+    // each slot that changed (vacated shields/weapons first, then the target).
+    for (const entry of vacated) this.items.delete(entry.slot)
     this.items.set(slot, removed)
+    for (const entry of vacated) {
+      if (entry.slot !== slot) this.events.emit('equipmentChanged', { slot: entry.slot, item: null })
+    }
     this.events.emit('equipmentChanged', { slot, item: removed })
     return true
   }

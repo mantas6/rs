@@ -145,6 +145,20 @@ export const items: Record<string, ItemDef> = {
       attackType: 'slash',
     },
   },
+  bronze_2h_sword: {
+    id: 'bronze_2h_sword',
+    name: 'Bronze 2h sword',
+    examine: 'A sword requiring two hands to wield.',
+    stackable: false,
+    value: 84,
+    equipment: {
+      slot: 'weapon',
+      twoHanded: true,
+      bonuses: { attackSlash: 7, attackCrush: 6, attackStab: -4, meleeStrength: 10 },
+      attackSpeed: 7,
+      attackType: 'slash',
+    },
+  },
   wooden_shield: {
     id: 'wooden_shield',
     name: 'Wooden shield',
