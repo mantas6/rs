@@ -4,6 +4,8 @@ import { AudioManager } from './audio'
 import { GameCanvas } from './GameCanvas'
 import { MessageLog } from './MessageLog'
 import { connectGameMessages, MessageStore } from './messages'
+import { BankModal } from './panels/BankModal'
+import { ShopModal } from './panels/ShopModal'
 import { SidePanel } from './panels/SidePanel'
 import { connectGameSounds } from './soundBindings'
 import { useGame } from './useGame'
@@ -31,6 +33,8 @@ export function App() {
         <MessageLog store={store} />
       </div>
       <SidePanel game={game} store={store} refresh={refresh} audio={audio} />
+      {game.bank.isOpen && <BankModal game={game} store={store} refresh={refresh} />}
+      {game.shop.isOpen && <ShopModal game={game} store={store} refresh={refresh} />}
     </div>
   )
 }

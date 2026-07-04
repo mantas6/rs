@@ -11,10 +11,8 @@ import { SpeakerIcon } from '../icons/SpeakerIcon'
 import { StatsIcon } from '../icons/StatsIcon'
 import type { MessageStore } from '../messages'
 import { clearStoredSave } from '../saveStorage'
-import { BankPanel } from './BankPanel'
 import { EquipmentPanel } from './EquipmentPanel'
 import { InventoryPanel } from './InventoryPanel'
-import { ShopPanel } from './ShopPanel'
 import { SkillsPanel } from './SkillsPanel'
 
 type Tab = 'inventory' | 'skills' | 'equipment'
@@ -29,9 +27,9 @@ const TAB_ICONS: Record<Tab, () => ReactElement> = {
 
 /**
  * OSRS-style side panel: status row (HP orb, run toggle, audio toggles,
- * tick counter), tab strip, and the active tab's panel. While the bank or
- * a shop is open, that interface replaces the tabbed panel (the engine
- * guarantees at most one is open at a time).
+ * tick counter), tab strip, and the active tab's panel. The tabs stay
+ * visible at all times; the bank and shop interfaces open as separate
+ * modal overlays (see BankModal/ShopModal) rather than replacing the panel.
  */
 export function SidePanel({
   game,
@@ -109,34 +107,26 @@ export function SidePanel({
         <span className="tick-counter">Tick {game.tickCount}</span>
       </div>
 
-      {game.bank.isOpen ? (
-        <BankPanel game={game} store={store} refresh={refresh} />
-      ) : game.shop.isOpen ? (
-        <ShopPanel game={game} store={store} refresh={refresh} />
-      ) : (
-        <>
-          <div className="tab-strip">
-            {TABS.map((name) => (
-              <button
-                type="button"
-                key={name}
-                className={tab === name ? 'active' : ''}
-                title={name.charAt(0).toUpperCase() + name.slice(1)}
-                onClick={() => {
-                  audio.play('click')
-                  setTab(name)
-                }}
-              >
-                {TAB_ICONS[name]()}
-                {name.charAt(0).toUpperCase() + name.slice(1)}
-              </button>
-            ))}
-          </div>
-          {tab === 'inventory' && <InventoryPanel game={game} store={store} refresh={refresh} />}
-          {tab === 'skills' && <SkillsPanel game={game} />}
-          {tab === 'equipment' && <EquipmentPanel game={game} store={store} refresh={refresh} />}
-        </>
-      )}
+      <div className="tab-strip">
+        {TABS.map((name) => (
+          <button
+            type="button"
+            key={name}
+            className={tab === name ? 'active' : ''}
+            title={name.charAt(0).toUpperCase() + name.slice(1)}
+            onClick={() => {
+              audio.play('click')
+              setTab(name)
+            }}
+          >
+            {TAB_ICONS[name]()}
+            {name.charAt(0).toUpperCase() + name.slice(1)}
+          </button>
+        ))}
+      </div>
+      {tab === 'inventory' && <InventoryPanel game={game} store={store} refresh={refresh} />}
+      {tab === 'skills' && <SkillsPanel game={game} />}
+      {tab === 'equipment' && <EquipmentPanel game={game} store={store} refresh={refresh} />}
     </aside>
   )
 }

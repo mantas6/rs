@@ -40,7 +40,7 @@ export function useGame(): { game: Game; version: number; refresh: () => void } 
   const refresh = useCallback(() => setVersion((v) => v + 1), [])
 
   useEffect(() => {
-    const events = ['tick', 'inventoryChanged', 'equipmentChanged', 'bankChanged', 'bankOpened', 'bankClosed', 'xpGained'] as const
+    const events = ['tick', 'inventoryChanged', 'equipmentChanged', 'bankChanged', 'bankOpened', 'bankClosed', 'shopOpened', 'shopClosed', 'itemBought', 'xpGained'] as const
     const unsubscribes = events.map((event) => game.events.on(event, refresh))
     const interval = setInterval(() => game.tick(), TICK_MS)
     return () => {
