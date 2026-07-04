@@ -20,6 +20,7 @@ import {
   LightFireAction,
   validateLightFire,
 } from '../systems/firemaking'
+import { FletchAction, getFletchingRecipe, validateFletch } from '../systems/fletching'
 import { GatherAction, validateGather } from '../systems/gathering'
 import { Inventory, type InventorySave } from '../systems/inventory'
 import { getItemDef } from '../systems/itemRegistry'
@@ -60,6 +61,7 @@ export type PlayerActionKind =
   | 'cooking'
   | 'smithing'
   | 'crafting'
+  | 'fletching'
   | 'banking'
   | 'shopping'
   | 'combat'
@@ -516,6 +518,25 @@ export class Player {
       return false
     }
     this._action = new CraftAction(recipe)
+    return true
+  }
+
+  /**
+   * Start carving logs into fletching products from the inventory (no
+   * walking — you carve where you stand, like sewing leather). Validates up
+   * front (knife, level, at least one log), emitting `actionFailed` with the
+   * reason on failure, then sets a FletchAction that produces one batch per
+   * FLETCH_INTERVAL_TICKS until the logs run out. Throws when no recipe
+   * exists for `productItemId`.
+   */
+  fletch(productItemId: string): boolean {
+    const recipe = getFletchingRecipe(productItemId)
+    const reason = validateFletch(this, recipe)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    this._action = new FletchAction(recipe)
     return true
   }
 

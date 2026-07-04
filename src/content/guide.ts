@@ -357,10 +357,37 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
   fletching: {
     skill: 'fletching',
     summary:
-      'Turns logs into bows and arrows in classic OSRS. Not yet implemented in this version.',
-    trainable: false,
-    steps: [],
-    notes: [],
+      'Carve logs into arrow shafts and unstrung bows with a knife, straight from your inventory.',
+    trainable: true,
+    steps: [
+      {
+        level: 1,
+        action:
+          'Buy a Knife from the general store, then use it on Logs to carve a batch of 15 Arrow shafts (5 XP each).',
+        itemIds: ['knife', 'logs', 'arrow_shafts'],
+      },
+      {
+        level: 5,
+        action: 'Fletching 5 lets you carve Logs into an unstrung Shortbow (5 XP each).',
+        itemIds: ['logs', 'shortbow_u'],
+      },
+      {
+        level: 10,
+        action: 'Fletching 10 lets you carve Logs into an unstrung Longbow (10 XP each).',
+        itemIds: ['logs', 'longbow_u'],
+      },
+      {
+        level: 20,
+        action:
+          'Fletching 20 lets you carve Oak logs into an unstrung Oak shortbow (16.5 XP each).',
+        itemIds: ['oak_logs', 'oak_shortbow_u'],
+      },
+    ],
+    notes: [
+      'The Knife is kept when carving; only the logs are consumed. It is stocked at the Lumbridge general store.',
+      'Get logs from Woodcutting: regular Logs from trees and Oak logs from oak trees.',
+      'Bowstringing the unstrung bows into usable weapons is not implemented yet, since Ranged combat is not in this version.',
+    ],
   },
   runecraft: {
     skill: 'runecraft',

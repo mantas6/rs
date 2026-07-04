@@ -152,6 +152,7 @@ const ACTION_POSE: Record<PlayerActionKind, PlayerPose> = {
   cooking: 'cook',
   smithing: 'cook', // stand over the furnace, same stance as cooking
   crafting: 'cook', // tanning at the tannery / sewing leather
+  fletching: 'cook', // carving logs with a knife, same seated stance
   banking: 'bank',
   shopping: 'bank',
   pickup: 'bank',

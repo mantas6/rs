@@ -273,6 +273,26 @@ export interface CraftingRecipeDef {
 }
 
 /**
+ * Fletching recipe definition (Fletching skill): logs carved into products
+ * with a knife (see fletching.ts). A knife is required in the inventory
+ * (never consumed); one log is consumed per carve and `productQuantity` of
+ * the product are produced. Carving always succeeds (like OSRS). Arrow
+ * shafts come out as a batch; bows come out one at a time (as unstrung bows).
+ */
+export interface FletchingRecipeDef {
+  /** Item produced per carve (arrow shafts, unstrung bows, ...). */
+  productItemId: string
+  /** How many of `productItemId` are produced per carve (e.g. 15 shafts). */
+  productQuantity: number
+  /** Log consumed per carve (one log per carve). */
+  logItemId: string
+  /** Minimum (boostable) fletching level to carve this product. */
+  levelRequired: number
+  /** Fletching xp per carve. */
+  xp: number
+}
+
+/**
  * Static world object definition (bank booths, cooking ranges, shop
  * counters). Placed in the world like resource nodes (see
  * engine/world/worldObject.ts); blocking objects affect walkability exactly

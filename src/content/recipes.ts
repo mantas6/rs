@@ -4,6 +4,7 @@ import type {
   CookingRecipeDef,
   CraftingRecipeDef,
   FiremakingDef,
+  FletchingRecipeDef,
   SmeltingRecipeDef,
   SmithingRecipeDef,
   TanningRecipeDef,
@@ -207,5 +208,42 @@ export const craftingRecipes: Record<string, CraftingRecipeDef> = {
     threadRequired: 1,
     levelRequired: 18,
     xp: 27,
+  },
+}
+
+/**
+ * Fletching recipes, keyed by the product item id. A knife (kept) carves one
+ * log into products from the inventory. Arrow shafts come out as a batch of
+ * 15; unstrung bows come out one at a time. Levels and xp follow OSRS. See
+ * fletching.ts.
+ */
+export const fletchingRecipes: Record<string, FletchingRecipeDef> = {
+  arrow_shafts: {
+    productItemId: 'arrow_shafts',
+    productQuantity: 15,
+    logItemId: 'logs',
+    levelRequired: 1,
+    xp: 5,
+  },
+  shortbow_u: {
+    productItemId: 'shortbow_u',
+    productQuantity: 1,
+    logItemId: 'logs',
+    levelRequired: 5,
+    xp: 5,
+  },
+  longbow_u: {
+    productItemId: 'longbow_u',
+    productQuantity: 1,
+    logItemId: 'logs',
+    levelRequired: 10,
+    xp: 10,
+  },
+  oak_shortbow_u: {
+    productItemId: 'oak_shortbow_u',
+    productQuantity: 1,
+    logItemId: 'oak_logs',
+    levelRequired: 20,
+    xp: 16.5,
   },
 }

@@ -91,6 +91,14 @@ export function connectGameMessages(game: Game, store: MessageStore): () => void
       const name = getItemDef(itemId).name.toLowerCase()
       store.push(healed > 0 ? `You eat the ${name}. It heals some health.` : `You eat the ${name}.`)
     }),
+    game.events.on('itemFletched', ({ productItemId, quantity }) => {
+      const name = getItemDef(productItemId).name.toLowerCase()
+      store.push(
+        quantity > 1
+          ? `You carve the logs into ${quantity} ${name}.`
+          : `You carefully fletch the ${name}.`,
+      )
+    }),
     game.events.on('itemDropped', ({ itemId }) => {
       store.push(`You drop the ${getItemDef(itemId).name.toLowerCase()}.`)
     }),
