@@ -1,31 +1,24 @@
-// Farm patch: a tilled soil bed with a crop that visibly grows. So an EMPTY
-// patch reads unmistakably as "plantable farmland" (and never as a wall or a
-// plain dirt path), the bed is dressed with a light wooden edging frame and a
-// set of raised furrow ridges — the universal "tilled plot" look. Both are
-// always visible, even before anything is planted. A "crop" group of little
-// green cones then scales up as a planted crop matures and shifts to a ripe
-// colour once fully grown, so the patch's state reads at a glance.
-//
-// Everything sits low to the ground (well under wall height) so the plot never
-// gets confused with the tall timber-framed plaster building walls.
+// Farm patch: a flat tilled-soil bed with visible furrows. Empty patches read
+// as low farmland, while planted patches add a bright grid of sprouts that grows
+// taller and turns ripe when ready to harvest.
 //
 // Parented to the tile group from `tileGroup` (which carries userData.tile) so
 // the renderer's picker resolves any nested mesh back to this tile — clicking
 // the patch plants or harvests (see renderer.ts / GameCanvas.tsx).
 import * as THREE from 'three'
 import { tileGroup, type SpriteResources } from './resources'
-import { box, WOOD, WOOD_LIGHT } from './stall'
+import { box } from './stall'
 
 /** Tilled dark soil. */
 const SOIL = 0x5a3d24
-/** Raised soil rim. */
+/** Darker damp soil in the furrows. */
 const SOIL_DARK = 0x422c19
 /** Light, sun-caught crest of a tilled furrow ridge (contrasts the dark bed). */
 const SOIL_RIDGE = 0x7a5330
 /** Growing (unripe) crop foliage. */
-const CROP_GROWING = 0x4a8f3c
+const CROP_GROWING = 0x55b84f
 /** Ripe, ready-to-harvest crop. */
-const CROP_RIPE = 0x8fbf3a
+const CROP_RIPE = 0xb4d64a
 
 /** A patch view: the tagged group plus the scalable crop foliage. */
 export interface FarmPatchView {
@@ -39,45 +32,32 @@ export interface FarmPatchView {
 export function createFarmPatchMesh(res: SpriteResources, x: number, y: number): FarmPatchView {
   const group = tileGroup(x, y)
 
-  // Tilled soil: a low rim slab with a slightly inset darker bed.
-  group.add(box(res, [0.9, 0.1, 0.9], SOIL_DARK, [0, 0.05, 0]))
-  group.add(box(res, [0.78, 0.06, 0.78], SOIL, [0, 0.12, 0]))
+  // Tilled soil: a thin ground-level bed, not a raised wall-like block.
+  group.add(box(res, [0.9, 0.025, 0.9], SOIL_DARK, [0, 0.025, 0]))
+  group.add(box(res, [0.82, 0.025, 0.82], SOIL, [0, 0.045, 0]))
 
   // Furrow ridges: parallel raised soil rows across the bed, in a lighter tone
   // than the bed so the tilled texture catches the light and reads clearly as
   // ploughed farmland even when nothing is planted.
-  for (const oz of [-0.27, -0.09, 0.09, 0.27]) {
-    group.add(box(res, [0.66, 0.05, 0.09], SOIL_RIDGE, [0, 0.17, oz]))
+  for (const oz of [-0.3, -0.1, 0.1, 0.3]) {
+    group.add(box(res, [0.7, 0.025, 0.055], SOIL_RIDGE, [0, 0.07, oz]))
   }
 
-  // Wooden edging frame: four low light-wood rails around the plot border, the
-  // familiar "garden bed" cue that invites planting and clearly sets the patch
-  // apart from the grey/cream stone walls of buildings.
-  for (const oz of [-0.44, 0.44]) {
-    group.add(box(res, [0.96, 0.12, 0.08], WOOD_LIGHT, [0, 0.06, oz]))
-  }
-  for (const ox of [-0.44, 0.44]) {
-    group.add(box(res, [0.08, 0.12, 0.96], WOOD, [ox, 0.06, 0]))
-  }
-
-  // Crop foliage: a small cluster of cones, one mesh per colour state. Both
-  // colour variants share transforms; visibility flips ripe on/off.
+  // Crop foliage: a clear planted-state signal. A full grid of sprouts appears
+  // as soon as a seed is planted, then scales up as the crop matures.
   const crop = new THREE.Group()
   const growing: THREE.Mesh[] = []
   const ripe: THREE.Mesh[] = []
-  const offsets: Array<[number, number]> = [
-    [0, 0],
-    [0.22, 0.18],
-    [-0.2, -0.16],
-    [0.18, -0.2],
-    [-0.18, 0.2],
-  ]
+  const offsets: Array<[number, number]> = []
+  for (const ox of [-0.24, 0, 0.24]) {
+    for (const oz of [-0.3, -0.1, 0.1, 0.3]) offsets.push([ox, oz])
+  }
+  const sproutGeo = res.geo(new THREE.ConeGeometry(0.075, 0.34, 6))
   for (const [ox, oz] of offsets) {
-    const geo = res.geo(new THREE.ConeGeometry(0.12, 0.5, 6))
-    const g = new THREE.Mesh(geo, res.mat(CROP_GROWING))
-    g.position.set(ox, 0.4, oz)
-    const r = new THREE.Mesh(geo, res.mat(CROP_RIPE))
-    r.position.set(ox, 0.4, oz)
+    const g = new THREE.Mesh(sproutGeo, res.mat(CROP_GROWING))
+    g.position.set(ox, 0.27, oz)
+    const r = new THREE.Mesh(sproutGeo, res.mat(CROP_RIPE))
+    r.position.set(ox, 0.27, oz)
     r.visible = false
     crop.add(g, r)
     growing.push(g)
@@ -103,8 +83,8 @@ export function updateFarmPatchGrowth(
 ): void {
   view.crop.visible = planted
   if (!planted) return
-  const s = 0.35 + 0.65 * Math.min(Math.max(progress, 0), 1)
-  view.crop.scale.set(1, s, 1)
+  const s = Math.min(Math.max(progress, 0), 1)
+  view.crop.scale.set(0.85 + 0.2 * s, 0.75 + 0.55 * s, 0.85 + 0.2 * s)
   for (const g of view.growing) g.visible = !grown
   for (const r of view.ripe) r.visible = grown
 }

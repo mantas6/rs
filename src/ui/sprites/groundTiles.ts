@@ -275,11 +275,17 @@ function makeFloorTexture(anisotropy: number): THREE.CanvasTexture {
 
 // ---- Tile classification + mesh assembly ----
 
-/** True when the base map blocks (x, y) — the tiles rendered as water/stone. */
+/** True when terrain itself blocks (x, y) — the tiles rendered as water/stone. */
 function isBlocked(world: World, x: number, y: number): boolean {
   if (!world.inBounds(x, y)) return false
-  // Node/object tiles render as grass (their mesh sits on top), so exclude them.
-  return !world.isWalkable(x, y) && !world.nodeAt(x, y) && !world.objectAt(x, y)
+  // Interactive blockers keep the normal ground surface with their own mesh on
+  // top; only base terrain blockers become water/stone.
+  return (
+    !world.isWalkable(x, y) &&
+    !world.nodeAt(x, y) &&
+    !world.objectAt(x, y) &&
+    !world.patchAt(x, y)
+  )
 }
 
 /**
