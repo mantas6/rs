@@ -28,6 +28,7 @@ import {
   createNpcMesh,
   createPlayerMesh,
   createRockMesh,
+  createScenery,
   createShopCounterMesh,
   createTreeMesh,
   decay01,
@@ -45,6 +46,7 @@ import {
   updateWaterRipple,
   yawToward,
   type HitsplatView,
+  type SceneryView,
   type WaterAnimation,
   type NpcPose,
   type NpcView,
@@ -210,6 +212,10 @@ export class GameRenderer {
   /** Root for everything pickable that carries userData.tile. */
   private readonly dynamicRoot = new THREE.Group()
 
+  // Purely decorative foliage + fences. Added straight to the scene (never to
+  // the pick list), so clicks pass through to the ground tile beneath.
+  private scenery!: SceneryView
+
   // Per-engine-object views, synced against engine state every frame.
   private playerView!: PlayerView
   private readonly npcViews = new Map<Npc, NpcView>()
@@ -352,6 +358,7 @@ export class GameRenderer {
     this.buildGround()
     this.buildStaticObjects()
     this.buildNodes()
+    this.buildScenery()
     this.playerView = createPlayerMesh(this.resources, game.player.x, game.player.y)
     this.dynamicRoot.add(this.playerView.group)
 
@@ -458,6 +465,16 @@ export class GameRenderer {
     }
   }
 
+  /**
+   * Decorative foliage + riverbank fences, deterministically scattered from
+   * the classified terrain. Added to the scene (not dynamicRoot) so it is
+   * never in the pick ray list — decorations can't intercept clicks.
+   */
+  private buildScenery(): void {
+    this.scenery = createScenery(this.resources, this.game.world, this.groundTiles, this.waterTiles)
+    this.scene.add(this.scenery.group)
+  }
+
   // ---- Tick interpolation ----
 
   /** Shift current → previous for every mover; runs once per engine tick. */
@@ -530,6 +547,9 @@ export class GameRenderer {
 
     // Drift the water surface so the river looks like it flows.
     updateWaterRipple(this.waterAnim, now)
+
+    // Gentle time-based sway for the foliage (one shared uniform write).
+    this.scenery.sway.value = now / 1000
 
     // Player.
     const p = this.moverPos(game.player, game.player.x, game.player.y)
