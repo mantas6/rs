@@ -38,6 +38,7 @@ const FAIL_MESSAGES: Record<ActionFailReason, string> = {
   inventory_full: "You don't have enough inventory space.",
   node_depleted: 'There is nothing left to gather here.',
   target_dead: 'That has already been killed.',
+  no_ammo: 'There is no ammo left in your quiver.',
   missing_ingredient: "You don't have the required items.",
   cannot_light_here: "You can't light a fire here.",
   invalid_source: "You can't use that here.",

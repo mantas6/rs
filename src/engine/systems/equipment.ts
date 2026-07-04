@@ -180,4 +180,48 @@ export class Equipment {
     if (!weapon) return UNARMED_ATTACK_SPEED
     return getItemDef(weapon.itemId).equipment?.attackSpeed ?? UNARMED_ATTACK_SPEED
   }
+
+  /**
+   * Attack reach in tiles (Chebyshev) of the equipped weapon. Melee weapons
+   * and the unarmed default are 1; bows reach several tiles (see combat.ts).
+   */
+  weaponRange(): number {
+    const weapon = this.items.get('weapon')
+    if (!weapon) return 1
+    return getItemDef(weapon.itemId).equipment?.attackRange ?? 1
+  }
+
+  /** True when the equipped weapon is a ranged weapon (a bow). */
+  isRangedWeapon(): boolean {
+    const weapon = this.items.get('weapon')
+    if (!weapon) return false
+    return getItemDef(weapon.itemId).equipment?.rangedWeapon === true
+  }
+
+  /** True when at least one item occupies the ammo slot. */
+  hasAmmo(): boolean {
+    const ammo = this.items.get('ammo')
+    return ammo !== undefined && ammo.quantity > 0
+  }
+
+  /**
+   * Consume `count` items from the ammo slot (used by ranged attacks).
+   * Emits `equipmentChanged` for the ammo slot (with the remaining stack, or
+   * null when it empties). Returns false without changes when the slot lacks
+   * that many.
+   */
+  consumeAmmo(count = 1): boolean {
+    const ammo = this.items.get('ammo')
+    if (!ammo || ammo.quantity < count) return false
+    const remaining = ammo.quantity - count
+    if (remaining <= 0) {
+      this.items.delete('ammo')
+      this.events.emit('equipmentChanged', { slot: 'ammo', item: null })
+    } else {
+      const updated: ItemStack = { itemId: ammo.itemId, quantity: remaining }
+      this.items.set('ammo', updated)
+      this.events.emit('equipmentChanged', { slot: 'ammo', item: updated })
+    }
+    return true
+  }
 }

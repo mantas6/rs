@@ -29,6 +29,11 @@ export const shops: Record<string, ShopDef> = {
       { itemId: 'vial_of_water', price: 0 },
       { itemId: 'eye_of_newt', price: 0 },
       { itemId: 'limpwurt_root', price: 0 },
+      // Ranged/Fletching supplies: bow strings for stringing bows and bronze
+      // arrowtips for building arrows. Feathers and unstrung bows come from
+      // chickens and Woodcutting+Fletching respectively.
+      { itemId: 'bowstring', price: 0 },
+      { itemId: 'bronze_arrowtips', price: 0 },
     ],
   },
   lumbridge_pub: {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { testMap } from '../../content/maps'
-import { fletchingRecipes } from '../../content/recipes'
+import { fletchingAssemblyRecipes, fletchingRecipes } from '../../content/recipes'
 import { Game } from '../core/game'
 import type { ActionFailReason } from './gathering'
 import { xpForLevel } from './skills'
@@ -94,6 +94,69 @@ describe('fletching: unstrung bows', () => {
   })
 })
 
+describe('fletching: assembly', () => {
+  it('strings unstrung bows with bowstrings', () => {
+    const game = makeGame()
+    game.player.skills.addXp('fletching', xpForLevel(5))
+    game.player.inventory.add('shortbow_u', 2)
+    game.player.inventory.add('bowstring', 2)
+    const fletched: { productItemId: string; quantity: number }[] = []
+    game.events.on('itemFletched', (e) => fletched.push(e))
+
+    expect(game.player.fletchAssemble('shortbow')).toBe(true)
+    for (let i = 0; i < 6; i++) game.tick()
+
+    expect(game.player.inventory.count('shortbow')).toBe(2)
+    expect(game.player.inventory.count('shortbow_u')).toBe(0)
+    expect(game.player.inventory.count('bowstring')).toBe(0)
+    expect(game.player.skills.getXp('fletching')).toBe(
+      xpForLevel(5) + 2 * fletchingAssemblyRecipes.shortbow.xp,
+    )
+    expect(fletched).toEqual([
+      { productItemId: 'shortbow', quantity: 1 },
+      { productItemId: 'shortbow', quantity: 1 },
+    ])
+    expect(game.player.action).toBeNull()
+  })
+
+  it('builds bronze arrows from shafts, feathers, headless arrows, and tips', () => {
+    const game = makeGame()
+    game.player.inventory.add('arrow_shafts', 3)
+    game.player.inventory.add('feather', 3)
+
+    expect(game.player.fletchAssemble('headless_arrow')).toBe(true)
+    for (let i = 0; i < 9; i++) game.tick()
+    expect(game.player.inventory.count('headless_arrow')).toBe(3)
+    expect(game.player.inventory.count('arrow_shafts')).toBe(0)
+    expect(game.player.inventory.count('feather')).toBe(0)
+
+    game.player.inventory.add('bronze_arrowtips', 3)
+    expect(game.player.fletchAssemble('bronze_arrow')).toBe(true)
+    for (let i = 0; i < 9; i++) game.tick()
+
+    expect(game.player.inventory.count('bronze_arrow')).toBe(3)
+    expect(game.player.inventory.count('headless_arrow')).toBe(0)
+    expect(game.player.inventory.count('bronze_arrowtips')).toBe(0)
+    expect(game.player.skills.getXp('fletching')).toBeCloseTo(
+      3 * fletchingAssemblyRecipes.headless_arrow.xp +
+        3 * fletchingAssemblyRecipes.bronze_arrow.xp,
+      6,
+    )
+  })
+
+  it('does not require a knife for arrow assembly', () => {
+    const game = makeGame()
+    game.player.inventory.add('arrow_shafts')
+    game.player.inventory.add('feather')
+
+    expect(game.player.fletchAssemble('headless_arrow')).toBe(true)
+    for (let i = 0; i < 3; i++) game.tick()
+
+    expect(game.player.inventory.count('headless_arrow')).toBe(1)
+    expect(game.player.inventory.count('knife')).toBe(0)
+  })
+})
+
 describe('fletching: validation', () => {
   it('emits missing_tool without a knife', () => {
     const game = makeGame()
@@ -125,6 +188,30 @@ describe('fletching: validation', () => {
   it('throws on products without a fletching recipe', () => {
     const game = makeGame()
     expect(() => game.player.fletch('logs')).toThrow(/Unknown fletching recipe/)
+  })
+
+  it('emits level_too_low for bowstringing below the required fletching level', () => {
+    const game = makeGame()
+    game.player.inventory.add('shortbow_u')
+    game.player.inventory.add('bowstring')
+    const failures = collectFailures(game)
+
+    expect(game.player.fletchAssemble('shortbow')).toBe(false)
+    expect(failures).toEqual(['level_too_low'])
+  })
+
+  it('emits missing_ingredient for assembly without both inputs', () => {
+    const game = makeGame()
+    game.player.inventory.add('arrow_shafts')
+    const failures = collectFailures(game)
+
+    expect(game.player.fletchAssemble('headless_arrow')).toBe(false)
+    expect(failures).toEqual(['missing_ingredient'])
+  })
+
+  it('throws on products without a fletching assembly recipe', () => {
+    const game = makeGame()
+    expect(() => game.player.fletchAssemble('logs')).toThrow(/Unknown fletching assembly recipe/)
   })
 })
 

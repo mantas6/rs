@@ -85,6 +85,18 @@ export interface EquipmentDef {
   attackType?: AttackType
   /** True for two-handed weapons: equipping one also vacates the shield slot, and a shield cannot be worn while it is equipped. */
   twoHanded?: boolean
+  /**
+   * Attack reach in tiles (Chebyshev distance). Melee weapons and the
+   * unarmed default are 1; bows reach several tiles (see combat.ts). Only
+   * meaningful on weapons.
+   */
+  attackRange?: number
+  /**
+   * True for ranged weapons (bows). Combat uses the Ranged formulas and
+   * consumes one item from the ammo slot per shot instead of the melee
+   * accuracy/strength path. Only meaningful on weapons.
+   */
+  rangedWeapon?: boolean
 }
 
 /** Skills that gather resources from world nodes. */
@@ -317,6 +329,35 @@ export interface FletchingRecipeDef {
   /** Minimum (boostable) fletching level to carve this product. */
   levelRequired: number
   /** Fletching xp per carve. */
+  xp: number
+}
+
+/**
+ * Fletching assembly recipe definition (Fletching skill): two inventory
+ * items combined into a product WITHOUT a tool (see fletching.ts). This
+ * covers bowstringing (unstrung bow + bowstring -> strung bow) and arrow
+ * assembly (arrow shafts + feather -> headless arrows, headless arrows +
+ * arrowtips -> arrows). One `primaryQuantity`/`secondaryQuantity` of each
+ * input is consumed per assembly and `productQuantity` produced. Assembly
+ * always succeeds (like OSRS). Keyed by product item id in
+ * fletchingAssemblyRecipes.
+ */
+export interface FletchingAssemblyDef {
+  /** Item produced per assembly. */
+  productItemId: string
+  /** How many of `productItemId` are produced per assembly. */
+  productQuantity: number
+  /** First input item consumed per assembly (e.g. the unstrung bow). */
+  primaryItemId: string
+  /** How many of `primaryItemId` are consumed per assembly. */
+  primaryQuantity: number
+  /** Second input item consumed per assembly (e.g. the bowstring). */
+  secondaryItemId: string
+  /** How many of `secondaryItemId` are consumed per assembly. */
+  secondaryQuantity: number
+  /** Minimum (boostable) fletching level to assemble this product. */
+  levelRequired: number
+  /** Fletching xp per assembly. */
   xp: number
 }
 

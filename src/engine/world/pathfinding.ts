@@ -107,3 +107,20 @@ export function findPathAdjacent(world: World, from: Vec2, to: Vec2): Vec2[] | n
   if (!world.inBounds(to.x, to.y)) return null
   return bfs(world, from, (x, y) => chebyshev({ x, y }, to) === 1)
 }
+
+/**
+ * Shortest path from `from` to the nearest reachable walkable tile within
+ * `range` tiles (Chebyshev) of `to`. Used by ranged combat to close only to
+ * weapon range rather than melee adjacency. Returns [] when `from` is
+ * already within range, or null when no such tile is reachable. Line of
+ * sight is intentionally not modelled (open maps).
+ */
+export function findPathWithinRange(
+  world: World,
+  from: Vec2,
+  to: Vec2,
+  range: number,
+): Vec2[] | null {
+  if (!world.inBounds(to.x, to.y)) return null
+  return bfs(world, from, (x, y) => chebyshev({ x, y }, to) <= range)
+}

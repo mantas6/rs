@@ -1,14 +1,17 @@
 import type { AttackStyle, Game } from '../../engine'
-import { EQUIPMENT_SLOTS, getItemDef } from '../../engine'
+import { attackStylesFor, EQUIPMENT_SLOTS, getItemDef } from '../../engine'
 import { ItemIcon } from '../icons/ItemIcon'
 import type { MessageStore } from '../messages'
 
-const ATTACK_STYLES: readonly AttackStyle[] = [
-  'accurate',
-  'aggressive',
-  'defensive',
-  'controlled',
-]
+/** Human-readable label for an attack-style button. */
+const STYLE_LABELS: Record<AttackStyle, string> = {
+  accurate: 'accurate',
+  aggressive: 'aggressive',
+  defensive: 'defensive',
+  controlled: 'controlled',
+  ranged_accurate: 'accurate',
+  ranged_rapid: 'rapid',
+}
 
 /** Worn equipment: click a filled slot to unequip; bonus totals below. */
 export function EquipmentPanel({
@@ -22,6 +25,7 @@ export function EquipmentPanel({
 }) {
   const equipment = game.player.equipment
   const bonuses = equipment.totalBonuses()
+  const attackStyles = attackStylesFor(equipment)
 
   function unequip(slot: (typeof EQUIPMENT_SLOTS)[number]): void {
     if (!game.player.unequip(slot)) {
@@ -69,11 +73,14 @@ export function EquipmentPanel({
           {bonuses.defenceCrush}
         </div>
         <div>Melee strength: {bonuses.meleeStrength}</div>
+        <div>
+          Ranged: attack {bonuses.attackRanged}, strength {bonuses.rangedStrength}
+        </div>
       </div>
       <div className="attack-styles">
         <span className="attack-styles-label">Attack style</span>
         <div className="attack-style-buttons">
-          {ATTACK_STYLES.map((style) => (
+          {attackStyles.map((style) => (
             <button
               type="button"
               key={style}
@@ -83,7 +90,7 @@ export function EquipmentPanel({
                 refresh()
               }}
             >
-              {style}
+              {STYLE_LABELS[style]}
             </button>
           ))}
         </div>

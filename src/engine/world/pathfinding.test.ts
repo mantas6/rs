@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { testMap } from '../../content/maps'
-import { findPath, findPathAdjacent } from './pathfinding'
+import { findPath, findPathAdjacent, findPathWithinRange } from './pathfinding'
 import { World } from './tileMap'
 import { chebyshev, type Vec2 } from './vec2'
 
@@ -127,5 +127,29 @@ describe('findPathAdjacent', () => {
   it('returns null when no adjacent tile is reachable', () => {
     const world = makeWorld(['.....', '.###.', '.#.#.', '.###.'])
     expect(findPathAdjacent(world, { x: 0, y: 0 }, { x: 2, y: 2 })).toBeNull()
+  })
+})
+
+describe('findPathWithinRange', () => {
+  it('returns an empty path when already within range', () => {
+    const world = makeWorld(['.....'])
+    expect(findPathWithinRange(world, { x: 0, y: 0 }, { x: 4, y: 0 }, 4)).toEqual([])
+  })
+
+  it('stops at the nearest tile within range instead of adjacent', () => {
+    const world = makeWorld(['..........'])
+    const path = findPathWithinRange(world, { x: 0, y: 0 }, { x: 9, y: 0 }, 4)
+    expect(path).toEqual([
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: 3, y: 0 },
+      { x: 4, y: 0 },
+      { x: 5, y: 0 },
+    ])
+  })
+
+  it('returns null when no in-range tile is reachable', () => {
+    const world = makeWorld(['.....', '.###.', '.#.#.', '.###.'])
+    expect(findPathWithinRange(world, { x: 0, y: 0 }, { x: 2, y: 2 }, 1)).toBeNull()
   })
 })

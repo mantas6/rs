@@ -1,6 +1,10 @@
 import type { ReactElement } from 'react'
+import { ArrowIcon } from './ArrowIcon'
 import { ArrowShaftsIcon } from './ArrowShaftsIcon'
+import { ArrowtipsIcon } from './ArrowtipsIcon'
 import { AxeIcon } from './AxeIcon'
+import { BowIcon } from './BowIcon'
+import { BowstringIcon } from './BowstringIcon'
 import { BarIcon } from './BarIcon'
 import { BeerGlassIcon } from './BeerGlassIcon'
 import { BeerIcon } from './BeerIcon'
@@ -107,6 +111,13 @@ const ICONS: Record<string, () => ReactElement> = {
   shortbow_u: () => <UnstrungBowIcon color={WOOD} />,
   longbow_u: () => <UnstrungBowIcon color={WOOD} long />,
   oak_shortbow_u: () => <UnstrungBowIcon color={OAK} />,
+  bowstring: () => <BowstringIcon />,
+  shortbow: () => <BowIcon color={WOOD} />,
+  longbow: () => <BowIcon color={WOOD} long />,
+  oak_shortbow: () => <BowIcon color={OAK} />,
+  bronze_arrowtips: () => <ArrowtipsIcon color={BRONZE} />,
+  headless_arrow: () => <ArrowIcon headless />,
+  bronze_arrow: () => <ArrowIcon color={BRONZE} />,
   potato_seed: () => <SeedIcon color="#b98a4a" />,
   onion_seed: () => <SeedIcon color="#d8c07a" />,
   cabbage_seed: () => <SeedIcon color="#9ab060" />,

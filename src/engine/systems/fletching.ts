@@ -1,5 +1,5 @@
-import { fletchingRecipes } from '../../content/recipes'
-import type { FletchingRecipeDef } from '../../content/types'
+import { fletchingAssemblyRecipes, fletchingRecipes } from '../../content/recipes'
+import type { FletchingAssemblyDef, FletchingRecipeDef } from '../../content/types'
 import type { Game } from '../core/game'
 import type { Player, PlayerAction } from '../entities/player'
 
@@ -88,5 +88,87 @@ export class FletchAction implements PlayerAction {
 
     // Continue only while another log remains to carve.
     return player.inventory.has(recipe.logItemId)
+  }
+}
+
+/**
+ * Fletching assembly recipe lookup for engine code (mirrors
+ * getFletchingRecipe). Content stays data-only.
+ */
+export function getFletchingAssemblyRecipe(productItemId: string): FletchingAssemblyDef {
+  const def = fletchingAssemblyRecipes[productItemId]
+  if (!def) throw new Error(`Unknown fletching assembly recipe for product item id: ${productItemId}`)
+  return def
+}
+
+/**
+ * Validate that `player` may assemble `recipe` right now. Returns the failure
+ * reason, or null when assembly may proceed. No tool is required; the CURRENT
+ * (boostable) fletching level gates the recipe, like OSRS.
+ */
+export function validateFletchAssemble(
+  player: Player,
+  recipe: FletchingAssemblyDef,
+): FletchingFailReason | null {
+  if (player.skills.getCurrentLevel('fletching') < recipe.levelRequired) return 'level_too_low'
+  if (
+    !player.inventory.has(recipe.primaryItemId, recipe.primaryQuantity) ||
+    !player.inventory.has(recipe.secondaryItemId, recipe.secondaryQuantity)
+  ) {
+    return 'missing_ingredient'
+  }
+  return null
+}
+
+/** True when `player` still holds both inputs of `recipe` in full. */
+function hasAssemblyInputs(player: Player, recipe: FletchingAssemblyDef): boolean {
+  return (
+    player.inventory.has(recipe.primaryItemId, recipe.primaryQuantity) &&
+    player.inventory.has(recipe.secondaryItemId, recipe.secondaryQuantity)
+  )
+}
+
+/**
+ * Tick-driven assembly of two inventory items into a fletching product
+ * (bowstringing, arrow building). No tool and no walking — done where you
+ * stand, like carving. Every FLETCH_INTERVAL_TICKS action ticks: re-validate,
+ * consume both inputs, grant the product plus xp. Continues until an input
+ * runs out or the player is interrupted. Emits the same `itemFletched` event
+ * as carving so the UI treats both uniformly.
+ */
+export class FletchAssembleAction implements PlayerAction {
+  readonly kind = 'fletching'
+  /** Assembly is done on the player's own tile — no facing target. */
+  readonly targetPosition = null
+
+  private ticksUntilFletch = FLETCH_INTERVAL_TICKS
+
+  constructor(private readonly recipe: FletchingAssemblyDef) {}
+
+  onTick(game: Game): boolean {
+    const { player, events } = game
+    const recipe = this.recipe
+
+    const reason = validateFletchAssemble(player, recipe)
+    if (reason !== null) {
+      events.emit('actionFailed', { reason })
+      return false
+    }
+
+    this.ticksUntilFletch--
+    if (this.ticksUntilFletch > 0) return true
+    this.ticksUntilFletch = FLETCH_INTERVAL_TICKS
+
+    player.inventory.remove(recipe.primaryItemId, recipe.primaryQuantity)
+    player.inventory.remove(recipe.secondaryItemId, recipe.secondaryQuantity)
+    player.inventory.add(recipe.productItemId, recipe.productQuantity)
+    player.skills.addXp('fletching', recipe.xp)
+    events.emit('itemFletched', {
+      productItemId: recipe.productItemId,
+      quantity: recipe.productQuantity,
+    })
+
+    // Continue only while both inputs remain for another assembly.
+    return hasAssemblyInputs(player, recipe)
   }
 }

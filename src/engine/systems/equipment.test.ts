@@ -124,6 +124,39 @@ describe('Equipment.equip', () => {
     ])
   })
 
+  it('equips bows as two-handed weapons and arrows as ammo', () => {
+    const { inventory, equipment, skills } = setup()
+    inventory.add('wooden_shield')
+    inventory.add('shortbow')
+    inventory.add('bronze_arrow', 25)
+
+    expect(equipment.equip(inventory, skills, 'wooden_shield')).toBe(true)
+    expect(equipment.equip(inventory, skills, 'shortbow')).toBe(true)
+    expect(equipment.get('weapon')).toEqual({ itemId: 'shortbow', quantity: 1 })
+    expect(equipment.get('shield')).toBeNull()
+    expect(inventory.count('wooden_shield')).toBe(1)
+    expect(equipment.isRangedWeapon()).toBe(true)
+    expect(equipment.weaponRange()).toBe(7)
+
+    expect(equipment.equip(inventory, skills, 'bronze_arrow')).toBe(true)
+    expect(equipment.get('ammo')).toEqual({ itemId: 'bronze_arrow', quantity: 25 })
+    expect(equipment.hasAmmo()).toBe(true)
+    expect(inventory.count('bronze_arrow')).toBe(0)
+  })
+
+  it('rejects bows whose ranged requirement is not met', () => {
+    const { inventory, equipment, skills } = setup()
+    inventory.add('oak_shortbow')
+
+    expect(equipment.equip(inventory, skills, 'oak_shortbow')).toBe(false)
+    expect(equipment.get('weapon')).toBeNull()
+    expect(inventory.count('oak_shortbow')).toBe(1)
+
+    skills.addXp('ranged', xpForLevel(5))
+    expect(equipment.equip(inventory, skills, 'oak_shortbow')).toBe(true)
+    expect(equipment.get('weapon')).toEqual({ itemId: 'oak_shortbow', quantity: 1 })
+  })
+
   it('rolls back when both displaced items cannot fit in the inventory', () => {
     const { inventory, equipment, skills } = setup()
     // Wear a one-handed weapon and a shield, then fill the rest of the
@@ -221,6 +254,39 @@ describe('Equipment.totalBonuses', () => {
     expect(bonuses.attackMagic).toBe(-6)
     expect(bonuses.attackRanged).toBe(-2)
     expect(bonuses.prayer).toBe(0)
+  })
+
+  it('includes ranged attack and ranged strength bonuses from bow and ammo', () => {
+    const { inventory, equipment, skills } = setup()
+    inventory.add('shortbow')
+    inventory.add('bronze_arrow', 12)
+
+    expect(equipment.equip(inventory, skills, 'shortbow')).toBe(true)
+    expect(equipment.equip(inventory, skills, 'bronze_arrow')).toBe(true)
+
+    const bonuses = equipment.totalBonuses()
+    expect(bonuses.attackRanged).toBe(8)
+    expect(bonuses.rangedStrength).toBe(7)
+  })
+})
+
+describe('Equipment.consumeAmmo', () => {
+  it('removes ammo from the equipped stack and emits slot changes', () => {
+    const { events, inventory, equipment, skills } = setup()
+    inventory.add('bronze_arrow', 2)
+    equipment.equip(inventory, skills, 'bronze_arrow')
+    const seen: Array<{ slot: string; item: unknown }> = []
+    events.on('equipmentChanged', (e) => seen.push(e))
+
+    expect(equipment.consumeAmmo()).toBe(true)
+    expect(equipment.get('ammo')).toEqual({ itemId: 'bronze_arrow', quantity: 1 })
+    expect(equipment.consumeAmmo()).toBe(true)
+    expect(equipment.get('ammo')).toBeNull()
+    expect(equipment.consumeAmmo()).toBe(false)
+    expect(seen).toEqual([
+      { slot: 'ammo', item: { itemId: 'bronze_arrow', quantity: 1 } },
+      { slot: 'ammo', item: null },
+    ])
   })
 })
 

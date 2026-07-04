@@ -1,8 +1,15 @@
 import { useRef, useState } from 'react'
 import type { DragEvent, MouseEvent } from 'react'
-import { cookingRecipes, firemakingDefs, smeltingRecipes, smithingRecipes } from '../../content/recipes'
+import {
+  cookingRecipes,
+  firemakingDefs,
+  fletchingAssemblyRecipes,
+  fletchingRecipes,
+  smeltingRecipes,
+  smithingRecipes,
+} from '../../content/recipes'
 import type { AnvilSource, CookingSource, Game, SmeltingSource } from '../../engine'
-import { chebyshev, getItemDef } from '../../engine'
+import { chebyshev, getItemDef, KNIFE_ITEM_ID } from '../../engine'
 import { ContextMenu, type MenuOption, type MenuState } from '../ContextMenu'
 import { ItemIcon } from '../icons/ItemIcon'
 import type { MessageStore } from '../messages'
@@ -77,6 +84,29 @@ function productForBar(game: Game, barItemId: string): string | null {
   return null
 }
 
+/** Fletching carving products available from this held log item. */
+function fletchingCarveProductsForItem(game: Game, itemId: string): string[] {
+  if (!game.player.inventory.has(KNIFE_ITEM_ID)) return []
+  return Object.values(fletchingRecipes)
+    .filter((recipe) => recipe.logItemId === itemId)
+    .filter((recipe) => game.player.skills.getCurrentLevel('fletching') >= recipe.levelRequired)
+    .filter((recipe) => game.player.inventory.has(recipe.logItemId))
+    .map((recipe) => recipe.productItemId)
+}
+
+/** Fletching assembly products available using this held item as an input. */
+function fletchingAssemblyProductsForItem(game: Game, itemId: string): string[] {
+  return Object.values(fletchingAssemblyRecipes)
+    .filter((recipe) => recipe.primaryItemId === itemId || recipe.secondaryItemId === itemId)
+    .filter((recipe) => game.player.skills.getCurrentLevel('fletching') >= recipe.levelRequired)
+    .filter(
+      (recipe) =>
+        game.player.inventory.has(recipe.primaryItemId, recipe.primaryQuantity) &&
+        game.player.inventory.has(recipe.secondaryItemId, recipe.secondaryQuantity),
+    )
+    .map((recipe) => recipe.productItemId)
+}
+
 /**
  * 4x7 backpack grid. Left click runs the context-sensitive default
  * (equip / eat / light / cook / examine); right click opens the full menu.
@@ -123,12 +153,22 @@ export function InventoryPanel({
     else game.player.forge(productItemId, source)
   }
 
+  function fletch(productItemId: string): void {
+    game.player.fletch(productItemId)
+  }
+
+  function fletchAssemble(productItemId: string): void {
+    game.player.fletchAssemble(productItemId)
+  }
+
   function defaultAction(index: number): void {
     const slot = slots[index]
     if (!slot) return
     const def = getItemDef(slot.itemId)
     const bar = barForOre(slot.itemId)
     const product = productForBar(game, slot.itemId)
+    const assemblyProduct = fletchingAssemblyProductsForItem(game, slot.itemId)[0]
+    const carveProduct = fletchingCarveProductsForItem(game, slot.itemId)[0]
     if (def.equipment) equip(index)
     else if (def.drink) game.player.drink(index)
     else if (def.healAmount !== undefined) game.player.eat(index)
@@ -136,6 +176,8 @@ export function InventoryPanel({
     else if (cookingRecipes[slot.itemId]) cook(slot.itemId)
     else if (bar) smelt(bar)
     else if (product) forge(product)
+    else if (assemblyProduct) fletchAssemble(assemblyProduct)
+    else if (carveProduct) fletch(carveProduct)
     else if (def.buryXp !== undefined) game.player.bury(index)
     else store.push(def.examine)
     refresh()
@@ -210,6 +252,18 @@ export function InventoryPanel({
     const product = productForBar(game, slot.itemId)
     if (product) {
       options.push({ label: `Smith ${def.name}`, onClick: () => forge(product) })
+    }
+    for (const productItemId of fletchingAssemblyProductsForItem(game, slot.itemId)) {
+      options.push({
+        label: `Fletch ${getItemDef(productItemId).name}`,
+        onClick: () => fletchAssemble(productItemId),
+      })
+    }
+    for (const productItemId of fletchingCarveProductsForItem(game, slot.itemId)) {
+      options.push({
+        label: `Fletch ${getItemDef(productItemId).name}`,
+        onClick: () => fletch(productItemId),
+      })
     }
     if (def.buryXp !== undefined) {
       options.push({ label: `Bury ${def.name}`, onClick: () => game.player.bury(index) })

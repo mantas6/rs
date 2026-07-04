@@ -1,13 +1,15 @@
 import { IconBase } from './IconBase'
 
-/** Bow with a nocked arrow — the Ranged skill glyph. */
-export function BowIcon() {
+/** Strung bow: a curved wooden stave with a taut string across the tips. */
+export function BowIcon({ color = '#8b5a2b', long = false }: { color?: string; long?: boolean }) {
+  // Longbows arc across nearly the full height; shortbows are more compact.
+  const stave = long ? 'M6 1 Q13.5 8 6 15' : 'M6 3 Q12.5 8 6 13'
+  const y1 = long ? 1 : 3
+  const y2 = long ? 15 : 13
   return (
     <IconBase>
-      <path d="M4.6 1.8 Q13.2 8 4.6 14.2" fill="none" stroke="#8b5a2b" strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="4.6" y1="1.8" x2="4.6" y2="14.2" stroke="#d8cfae" strokeWidth="0.8" />
-      <line x1="4.6" y1="8" x2="12.6" y2="8" stroke="#9c8d72" strokeWidth="1.1" />
-      <polygon points="14.6,8 11.9,6.7 11.9,9.3" fill="#c8ccd2" />
+      <path d={stave} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="6" y1={y1} x2="6" y2={y2} stroke="#e8e0c8" strokeWidth="0.7" />
     </IconBase>
   )
 }

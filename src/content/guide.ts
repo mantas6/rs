@@ -126,10 +126,32 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
   ranged: {
     skill: 'ranged',
     summary:
-      'The ranged combat style of classic OSRS. Combat here is melee-only, so Ranged cannot be trained yet.',
-    trainable: false,
-    steps: [],
-    notes: ['Only melee combat (Attack, Strength, Defence) is implemented in this version.'],
+      'The ranged combat style: wield a bow with arrows equipped and attack from a distance. Trained by dealing damage with a bow.',
+    trainable: true,
+    steps: [
+      {
+        level: 1,
+        action:
+          'Fletch or buy a Shortbow, equip it with Bronze arrows in the ammo slot, set your attack style, and shoot chickens or cows from a few tiles away.',
+        itemIds: ['shortbow', 'bronze_arrow'],
+      },
+      {
+        level: 1,
+        action:
+          'The Longbow trades attack speed for greater range. Use the Rapid style to fire faster or Accurate for better aim.',
+        itemIds: ['longbow'],
+      },
+      {
+        level: 5,
+        action: 'Ranged 5 lets you wield the sturdier Oak shortbow for a bigger ranged bonus.',
+        itemIds: ['oak_shortbow'],
+      },
+    ],
+    notes: [
+      'Each shot consumes one arrow from the ammo slot; with no arrows equipped a bow cannot fire.',
+      'Accurate grants a small accuracy bonus; Rapid fires one tick faster. Both train Ranged (plus Hitpoints).',
+      'Bows are two-handed, so they occupy the weapon slot and clear any shield.',
+    ],
   },
   magic: {
     skill: 'magic',
@@ -363,7 +385,7 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
   fletching: {
     skill: 'fletching',
     summary:
-      'Carve logs into arrow shafts and unstrung bows with a knife, straight from your inventory.',
+      'Carve logs into arrow shafts and unstrung bows with a knife, string bows into usable weapons, and build arrows.',
     trainable: true,
     steps: [
       {
@@ -373,26 +395,35 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
         itemIds: ['knife', 'logs', 'arrow_shafts'],
       },
       {
+        level: 1,
+        action:
+          'Add a Feather to Arrow shafts to make Headless arrows (1 XP), then add Bronze arrowtips to make Bronze arrows (1.3 XP) — ammo for your bows.',
+        itemIds: ['arrow_shafts', 'feather', 'headless_arrow', 'bronze_arrowtips', 'bronze_arrow'],
+      },
+      {
         level: 5,
-        action: 'Fletching 5 lets you carve Logs into an unstrung Shortbow (5 XP each).',
-        itemIds: ['logs', 'shortbow_u'],
+        action:
+          'Fletching 5 lets you carve Logs into an unstrung Shortbow (5 XP), then add a Bow string to finish a Shortbow (5 XP) you can wield.',
+        itemIds: ['logs', 'shortbow_u', 'bowstring', 'shortbow'],
       },
       {
         level: 10,
-        action: 'Fletching 10 lets you carve Logs into an unstrung Longbow (10 XP each).',
-        itemIds: ['logs', 'longbow_u'],
+        action:
+          'Fletching 10 lets you carve an unstrung Longbow (10 XP) and string it into a Longbow (10 XP).',
+        itemIds: ['logs', 'longbow_u', 'bowstring', 'longbow'],
       },
       {
         level: 20,
         action:
-          'Fletching 20 lets you carve Oak logs into an unstrung Oak shortbow (16.5 XP each).',
-        itemIds: ['oak_logs', 'oak_shortbow_u'],
+          'Fletching 20 lets you carve Oak logs into an unstrung Oak shortbow (16.5 XP) and string it into an Oak shortbow (16.5 XP).',
+        itemIds: ['oak_logs', 'oak_shortbow_u', 'bowstring', 'oak_shortbow'],
       },
     ],
     notes: [
       'The Knife is kept when carving; only the logs are consumed. It is stocked at the Lumbridge general store.',
       'Get logs from Woodcutting: regular Logs from trees and Oak logs from oak trees.',
-      'Bowstringing the unstrung bows into usable weapons is not implemented yet, since Ranged combat is not in this version.',
+      'Bow strings and bronze arrowtips are stocked free at the Lumbridge general store; feathers drop from chickens.',
+      'String an unstrung bow with a Bow string to make a wieldable Ranged weapon; combine shafts, feathers and arrowtips into arrows for ammo.',
     ],
   },
   runecraft: {

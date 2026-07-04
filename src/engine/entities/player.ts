@@ -2,7 +2,7 @@ import type { EquipmentSlot } from '../../content/types'
 import type { EventBus } from '../core/eventBus'
 import type { Game } from '../core/game'
 import { OpenBankAction } from '../systems/bank'
-import { AttackAction, type AttackStyle } from '../systems/combat'
+import { AttackAction, type AttackStyle, RANGED_RAPID_SPEED_REDUCTION } from '../systems/combat'
 import { CookAction, type CookingSource, getCookingRecipe, validateCook } from '../systems/cooking'
 import {
   CraftAction,
@@ -21,7 +21,14 @@ import {
   LightFireAction,
   validateLightFire,
 } from '../systems/firemaking'
-import { FletchAction, getFletchingRecipe, validateFletch } from '../systems/fletching'
+import {
+  FletchAction,
+  FletchAssembleAction,
+  getFletchingAssemblyRecipe,
+  getFletchingRecipe,
+  validateFletch,
+  validateFletchAssemble,
+} from '../systems/fletching'
 import { GatherAction, validateGather } from '../systems/gathering'
 import {
   CleanAction,
@@ -56,10 +63,10 @@ import {
   PickUpAction,
 } from '../world/groundItems'
 import type { FarmPatch } from '../world/farmPatch'
-import { findPath, findPathAdjacent } from '../world/pathfinding'
+import { findPath, findPathAdjacent, findPathWithinRange } from '../world/pathfinding'
 import type { ResourceNode } from '../world/resourceNode'
 import type { World } from '../world/tileMap'
-import type { Vec2 } from '../world/vec2'
+import { chebyshev, type Vec2 } from '../world/vec2'
 import type { WorldObject } from '../world/worldObject'
 import type { Npc } from './npc'
 // Player-related type declarations and consumable event augmentations live in
@@ -368,6 +375,18 @@ export class Player {
   }
 
   /**
+   * Like `chase`, but closes only to within `range` tiles (Chebyshev) of
+   * `target` rather than to melee adjacency. Used by ranged combat to keep
+   * firing from a distance. Returns false when no in-range tile is reachable.
+   */
+  chaseWithinRange(target: Vec2, range: number): boolean {
+    const path = findPathWithinRange(this.world, this.position, target, range)
+    if (path === null) return false
+    this.path = path
+    return true
+  }
+
+  /**
    * Instantly move to (x, y), clearing the movement queue and current
    * action. Used for death respawns. The target tile must be walkable.
    */
@@ -471,7 +490,21 @@ export class Player {
       this.events.emit('actionFailed', { reason: 'target_dead' })
       return false
     }
-    return this.walkAdjacentThen(npc.position, new AttackAction(npc))
+    const range = this.equipment.weaponRange()
+    // Melee weapons (range 1) walk to adjacency, exactly as before.
+    if (range <= 1) return this.walkAdjacentThen(npc.position, new AttackAction(npc))
+    // Ranged weapons only need to be within weapon range: act in place when
+    // already in range, otherwise path to the nearest in-range tile.
+    if (chebyshev(this.position, npc.position) <= range) {
+      this.path = []
+      this._action = new AttackAction(npc)
+      return true
+    }
+    const path = findPathWithinRange(this.world, this.position, npc.position, range)
+    if (path === null) return false
+    this.path = path
+    this._action = new AttackAction(npc)
+    return true
   }
 
   /**
@@ -490,7 +523,20 @@ export class Player {
    * this after performing an attack).
    */
   markAttacked(tick: number): void {
-    this._nextAttackTick = tick + this.equipment.weaponSpeed()
+    this._nextAttackTick = tick + this.effectiveAttackSpeed()
+  }
+
+  /**
+   * Attack speed in ticks for the next swing: the weapon's base speed, minus
+   * one (to a floor of 1) when firing a bow on the Rapid ranged style. Melee
+   * weapons are unaffected, so melee timing is identical to before.
+   */
+  private effectiveAttackSpeed(): number {
+    const base = this.equipment.weaponSpeed()
+    if (this.equipment.isRangedWeapon() && this._attackStyle === 'ranged_rapid') {
+      return Math.max(1, base - RANGED_RAPID_SPEED_REDUCTION)
+    }
+    return base
   }
 
   /**
@@ -632,6 +678,26 @@ export class Player {
       return false
     }
     this._action = new FletchAction(recipe)
+    return true
+  }
+
+  /**
+   * Start assembling a fletching product from two inventory items (no tool,
+   * no walking): stringing an unstrung bow with a bow string, or building
+   * arrows (shafts + feather, headless arrows + arrowtips). Validates up
+   * front (level and both inputs), emitting `actionFailed` with the reason on
+   * failure, then sets a FletchAssembleAction that produces one per
+   * FLETCH_INTERVAL_TICKS until an input runs out. Throws when no assembly
+   * recipe exists for `productItemId`.
+   */
+  fletchAssemble(productItemId: string): boolean {
+    const recipe = getFletchingAssemblyRecipe(productItemId)
+    const reason = validateFletchAssemble(this, recipe)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    this._action = new FletchAssembleAction(recipe)
     return true
   }
 

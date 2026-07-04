@@ -12,6 +12,8 @@ import {
   effectiveLevel,
   hitChance,
   maxHit,
+  rangedAccuracyRoll,
+  rangedMaxHit,
   rollDamage,
 } from './combat'
 
@@ -22,6 +24,13 @@ const CHICKEN = { defId: 'chicken', x: 6, y: 2 }
 
 function makeGame(placements: NpcPlacement[], seed = 42): Game {
   return new Game({ seed, map: testMap, npcs: placements })
+}
+
+function equipShortbow(game: Game, arrows = 50): void {
+  game.player.inventory.add('shortbow')
+  game.player.inventory.add('bronze_arrow', arrows)
+  expect(game.player.equip('shortbow')).toBe(true)
+  expect(game.player.equip('bronze_arrow')).toBe(true)
 }
 
 /** Tick until `done` returns true (throws after `max` ticks). */
@@ -70,6 +79,17 @@ describe('combat formulas', () => {
       expect(damage).toBeGreaterThanOrEqual(0)
       expect(damage).toBeLessThanOrEqual(3)
     }
+  })
+
+  it('ranged rolls scale with Ranged level and ranged equipment bonuses', () => {
+    expect(rangedAccuracyRoll(1, 'ranged_accurate', 0)).toBeGreaterThan(
+      rangedAccuracyRoll(1, 'ranged_rapid', 0),
+    )
+    expect(rangedAccuracyRoll(20, 'ranged_rapid', 8)).toBeGreaterThan(
+      rangedAccuracyRoll(1, 'ranged_rapid', 0),
+    )
+    expect(rangedMaxHit(20, 7)).toBeGreaterThan(rangedMaxHit(1, 7))
+    expect(rangedMaxHit(20, 64)).toBeGreaterThan(rangedMaxHit(20, 7))
   })
 })
 
@@ -172,6 +192,91 @@ describe('player attacks an npc', () => {
 
     expect(game.player.attack(npc)).toBe(false)
     expect(failures).toEqual(['target_dead'])
+  })
+})
+
+describe('player ranged attacks', () => {
+  it('shoots from bow range without walking adjacent and consumes one arrow per attack', () => {
+    const game = makeGame([{ defId: 'chicken', x: 8, y: 2 }])
+    const npc = game.npcs[0]
+    equipShortbow(game, 10)
+    game.player.setAttackStyle('ranged_accurate')
+    const distances: number[] = []
+
+    game.events.on('damageDealt', (e) => {
+      if (e.source === 'player') distances.push(chebyshev(game.player.position, npc.position))
+    })
+
+    expect(game.player.attack(npc)).toBe(true)
+    expect(game.player.isMoving).toBe(false)
+    tickUntil(game, () => distances.length >= 2, 100)
+
+    expect(distances[0]).toBeGreaterThan(1)
+    expect(distances[0]).toBeLessThanOrEqual(game.player.equipment.weaponRange())
+    expect(game.player.equipment.get('ammo')).toEqual({ itemId: 'bronze_arrow', quantity: 8 })
+  })
+
+  it('fails cleanly with no ammo equipped', () => {
+    const game = makeGame([{ defId: 'chicken', x: 8, y: 2 }])
+    const npc = game.npcs[0]
+    game.player.inventory.add('shortbow')
+    expect(game.player.equip('shortbow')).toBe(true)
+    const failures: string[] = []
+    const playerHits: number[] = []
+    game.events.on('actionFailed', ({ reason }) => failures.push(reason))
+    game.events.on('damageDealt', (e) => {
+      if (e.source === 'player') playerHits.push(e.damage)
+    })
+
+    expect(game.player.attack(npc)).toBe(true)
+    game.tick()
+
+    expect(failures).toEqual(['no_ammo'])
+    expect(playerHits).toEqual([])
+    expect(npc.currentHp).toBe(npc.def.combat.hitpoints)
+    expect(game.player.action).toBeNull()
+  })
+
+  it('routes ranged damage xp to Ranged and Hitpoints and still drops loot on kills', () => {
+    const game = makeGame([{ defId: 'chicken', x: 8, y: 2 }])
+    const npc = game.npcs[0]
+    equipShortbow(game, 100)
+    const playerHits: number[] = []
+    game.events.on('damageDealt', (e) => {
+      if (e.source === 'player') playerHits.push(e.damage)
+    })
+
+    expect(game.player.attack(npc)).toBe(true)
+    tickUntil(game, () => !npc.alive, 800)
+
+    const totalDamage = playerHits.reduce((a, b) => a + b, 0)
+    expect(totalDamage).toBe(npcs.chicken.combat.hitpoints)
+    expect(game.player.skills.getXp('ranged')).toBeCloseTo(4 * totalDamage, 6)
+    expect(game.player.skills.getXp('hitpoints')).toBeCloseTo(1154 + (4 / 3) * totalDamage, 6)
+    expect(game.player.skills.getXp('attack')).toBe(0)
+    expect(game.player.skills.getXp('strength')).toBe(0)
+    expect(game.player.skills.getXp('defence')).toBe(0)
+    const dropped = game.groundItems.itemsAt(npc.x, npc.y).map((g) => g.itemId)
+    expect(dropped).toContain('bones')
+    expect(dropped).toContain('raw_chicken')
+    expect(game.player.equipment.get('ammo')?.quantity).toBeLessThan(100)
+  })
+
+  it('rapid ranged style attacks one tick faster than the bow base speed', () => {
+    const game = makeGame([{ defId: 'cow', x: 8, y: 2 }])
+    const cow = game.npcs[0]
+    equipShortbow(game, 20)
+    game.player.setAttackStyle('ranged_rapid')
+    const attackTicks: number[] = []
+    game.events.on('damageDealt', (e) => {
+      if (e.source === 'player') attackTicks.push(game.tickCount)
+    })
+
+    expect(game.player.attack(cow)).toBe(true)
+    for (let i = 0; i < 10; i++) game.tick()
+
+    expect(cow.alive).toBe(true)
+    expect(attackTicks).toEqual([1, 4, 7, 10])
   })
 })
 

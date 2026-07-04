@@ -4,6 +4,7 @@ import type {
   CookingRecipeDef,
   CraftingRecipeDef,
   FiremakingDef,
+  FletchingAssemblyDef,
   FletchingRecipeDef,
   HerbCleaningDef,
   PotionRecipeDef,
@@ -246,6 +247,67 @@ export const fletchingRecipes: Record<string, FletchingRecipeDef> = {
     productItemId: 'oak_shortbow_u',
     productQuantity: 1,
     logItemId: 'oak_logs',
+    levelRequired: 20,
+    xp: 16.5,
+  },
+}
+
+/**
+ * Fletching assembly recipes, keyed by the product item id. Unlike carving,
+ * these combine two inventory items with no tool: stringing an unstrung bow
+ * with a bow string, and building arrows (shafts + feather -> headless
+ * arrows, headless arrows + arrowtips -> finished arrows). Assembly always
+ * succeeds; each attempt consumes the input quantities and yields the
+ * product. Levels and xp follow OSRS. See fletching.ts.
+ */
+export const fletchingAssemblyRecipes: Record<string, FletchingAssemblyDef> = {
+  headless_arrow: {
+    productItemId: 'headless_arrow',
+    productQuantity: 1,
+    primaryItemId: 'arrow_shafts',
+    primaryQuantity: 1,
+    secondaryItemId: 'feather',
+    secondaryQuantity: 1,
+    levelRequired: 1,
+    xp: 1,
+  },
+  bronze_arrow: {
+    productItemId: 'bronze_arrow',
+    productQuantity: 1,
+    primaryItemId: 'headless_arrow',
+    primaryQuantity: 1,
+    secondaryItemId: 'bronze_arrowtips',
+    secondaryQuantity: 1,
+    levelRequired: 1,
+    xp: 1.3,
+  },
+  shortbow: {
+    productItemId: 'shortbow',
+    productQuantity: 1,
+    primaryItemId: 'shortbow_u',
+    primaryQuantity: 1,
+    secondaryItemId: 'bowstring',
+    secondaryQuantity: 1,
+    levelRequired: 5,
+    xp: 5,
+  },
+  longbow: {
+    productItemId: 'longbow',
+    productQuantity: 1,
+    primaryItemId: 'longbow_u',
+    primaryQuantity: 1,
+    secondaryItemId: 'bowstring',
+    secondaryQuantity: 1,
+    levelRequired: 10,
+    xp: 10,
+  },
+  oak_shortbow: {
+    productItemId: 'oak_shortbow',
+    productQuantity: 1,
+    primaryItemId: 'oak_shortbow_u',
+    primaryQuantity: 1,
+    secondaryItemId: 'bowstring',
+    secondaryQuantity: 1,
     levelRequired: 20,
     xp: 16.5,
   },
