@@ -6,12 +6,10 @@ import { getItemDef } from '../engine'
 import { ContextMenu, type MenuState } from './ContextMenu'
 import type { MessageStore } from './messages'
 import {
-  computeCamera,
   describeTile,
+  GameRenderer,
   type Hover,
   npcCombatLevel,
-  renderGame,
-  tileFromPixel,
   VIEW_H,
   VIEW_W,
 } from './renderer'
@@ -38,9 +36,12 @@ function cookFirstRaw(game: Game, source: CookingSource, store: MessageStore): v
 }
 
 /**
- * The world viewport: a single <canvas> redrawn once per tick (version
- * bump) plus left-click commands and a right-click context menu. All
- * behavior goes through engine command APIs — no game logic here.
+ * The world viewport: a single <canvas> driven by the Three.js GameRenderer
+ * (see renderer.ts) plus left-click commands and a right-click context
+ * menu. Clicks are mapped to map tiles via raycast picking, so all
+ * behavior still goes through engine command APIs — no game logic here.
+ * Camera controls (middle-drag / arrow keys / scroll zoom) live in the
+ * renderer itself.
  */
 export function GameCanvas({
   game,
@@ -54,27 +55,49 @@ export function GameCanvas({
   refresh: () => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const rendererRef = useRef<GameRenderer | null>(null)
   const [hover, setHover] = useState<Hover | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
 
+  // One renderer per mounted canvas; dispose GPU resources on unmount.
   useEffect(() => {
-    const ctx = canvasRef.current?.getContext('2d')
-    if (ctx) renderGame(ctx, game, computeCamera(game), hover)
-  }, [game, version, hover])
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const renderer = new GameRenderer(canvas, game)
+    rendererRef.current = renderer
+    return () => {
+      rendererRef.current = null
+      renderer.dispose()
+    }
+  }, [game])
 
-  function tileFromEvent(e: MouseEvent<HTMLCanvasElement>): { x: number; y: number } {
-    const rect = e.currentTarget.getBoundingClientRect()
-    return tileFromPixel(computeCamera(game), e.clientX - rect.left, e.clientY - rect.top)
+  // Instant redraw on command feedback between ticks (inventory, xp, ...).
+  useEffect(() => {
+    rendererRef.current?.syncNow()
+  }, [version])
+
+  useEffect(() => {
+    rendererRef.current?.setHover(hover)
+  }, [hover])
+
+  function tileFromEvent(e: MouseEvent<HTMLCanvasElement>): Hover | null {
+    return rendererRef.current?.pickTile(e.clientX, e.clientY) ?? null
   }
 
   function handleMouseMove(e: MouseEvent<HTMLCanvasElement>): void {
     const tile = tileFromEvent(e)
+    if (tile === null) {
+      if (hover) setHover(null)
+      return
+    }
     if (!hover || hover.x !== tile.x || hover.y !== tile.y) setHover(tile)
   }
 
   /** OSRS-like left-click priority: NPC, node, bank, range, item, walk. */
   function handleClick(e: MouseEvent<HTMLCanvasElement>): void {
-    const { x, y } = tileFromEvent(e)
+    const tile = tileFromEvent(e)
+    if (!tile) return
+    const { x, y } = tile
     if (!game.world.inBounds(x, y)) return
 
     const npc = game.npcs.find((n) => n.alive && n.x === x && n.y === y)
@@ -107,7 +130,9 @@ export function GameCanvas({
 
   function handleContextMenu(e: MouseEvent<HTMLCanvasElement>): void {
     e.preventDefault()
-    const { x, y } = tileFromEvent(e)
+    const tile = tileFromEvent(e)
+    if (!tile) return
+    const { x, y } = tile
     if (!game.world.inBounds(x, y)) return
 
     const options: MenuState['options'] = []
@@ -182,7 +207,7 @@ export function GameCanvas({
     setMenu({ x: e.clientX, y: e.clientY, options: withRefresh })
   }
 
-  // Keep the hover title in the DOM too, for accessibility/debugging.
+  // OSRS-style action text in the viewport corner (also the DOM title).
   const hoverLabel = hover ? describeTile(game, hover.x, hover.y) : null
 
   return (
@@ -198,6 +223,7 @@ export function GameCanvas({
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       />
+      {hoverLabel && <div className="hover-label">{hoverLabel}</div>}
       {menu && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
     </div>
   )

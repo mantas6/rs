@@ -40,11 +40,26 @@ button {
 
 .game-canvas-wrap {
   line-height: 0;
+  position: relative;
 }
 
 .game-canvas {
   border: 2px solid #5a4a2f;
   background: #000;
+}
+
+/* OSRS-style hover action text in the viewport's top-left corner. */
+.hover-label {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.7);
+  color: #f4d03f;
+  font-size: 12px;
+  line-height: 16px;
+  padding: 1px 6px;
+  border-radius: 3px;
 }
 
 /* ---- Message log ---- */
