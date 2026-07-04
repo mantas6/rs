@@ -36,8 +36,10 @@ import {
   updateFishingSpotPulse,
   updateGroundItemSpin,
   updateHealthBar,
+  updateNpcAnimation,
   updatePlayerAnimation,
   yawToward,
+  type NpcPose,
   type NpcView,
   type PlayerPose,
   type PlayerView,
@@ -96,13 +98,14 @@ const CAM_MAX_PITCH = 1.35
 const KEY_YAW_SPEED = 2.2
 const KEY_PITCH_SPEED = 1.4
 
-// ---- Player animation constants (purely visual; see sprites/playerMesh.ts) ----
+// ---- Animation constants shared by the player and NPCs (purely visual;
+// see sprites/playerMesh.ts and sprites/npcMesh.ts) ----
 
 /** How long the red flash + flinch lasts after taking damage. */
 const FLINCH_MS = 350
-/** Duration of one attack-swing overlay after the player deals damage. */
+/** Duration of one attack-swing overlay after an attacker deals damage. */
 const ATTACK_SWING_MS = 400
-/** Fall-over time and total on-the-ground time after dying. */
+/** Fall-over time and total on-the-ground (corpse) time after dying. */
 const DEATH_FALL_MS = 500
 const DEATH_TOTAL_MS = 1100
 /** Facing turn speed, radians per second. */
@@ -247,12 +250,20 @@ export class GameRenderer {
     this.playerView = createPlayerMesh(this.resources, game.player.x, game.player.y)
     this.dynamicRoot.add(this.playerView.group)
 
-    // Transient animation triggers (flinch, attack swing, death fall).
+    // Transient animation triggers (flinch, attack swing, death fall) for
+    // the player and for the NPC instance carried by each combat event.
     this.unsubscribeAnimEvents.push(
-      game.events.on('damageDealt', ({ source, targetId, damage }) => {
+      game.events.on('damageDealt', ({ source, targetId, damage, targetHpAfter, npc }) => {
         const at = performance.now()
-        if (source === 'player') this.lastAttackAt = at
-        else if (targetId === 'player' && damage > 0) this.lastHurtAt = at
+        const view = this.npcView(npc)
+        if (source === 'player') {
+          this.lastAttackAt = at
+          if (view && damage > 0) view.lastHurtAt = at
+          if (view && targetHpAfter <= 0) view.diedAt = at
+        } else {
+          if (targetId === 'player' && damage > 0) this.lastHurtAt = at
+          if (view) view.lastAttackAt = at // NPC swings even on a miss
+        }
       }),
       game.events.on('playerDied', () => {
         this.diedAt = performance.now()
@@ -382,20 +393,22 @@ export class GameRenderer {
     this.playerView.group.userData.tile = { x: game.player.x, y: game.player.y }
     this.animatePlayer(now, dt)
 
-    // NPCs: lazily created, hidden while dead, hp bar when damaged.
+    // NPCs: lazily created, hp bar when damaged; a brief corpse animation
+    // (fall + sink) keeps the mesh visible right after death.
     for (const npc of game.npcs) {
-      let view = this.npcViews.get(npc)
-      if (!view) {
-        view = createNpcMesh(this.resources, npc)
-        this.npcViews.set(npc, view)
-        this.dynamicRoot.add(view.group)
-      }
-      view.group.visible = npc.alive
-      if (!npc.alive) continue
+      const view = this.npcView(npc)
+      const dying = !npc.alive && now - view.diedAt < DEATH_TOTAL_MS
+      view.group.visible = npc.alive || dying
+      if (!view.group.visible) continue
       const pos = this.moverPos(npc, npc.x, npc.y)
       view.group.position.set(pos.x + 0.5, 0, pos.y + 0.5)
       view.group.userData.tile = { x: npc.x, y: npc.y }
-      updateHealthBar(view, npc.currentHp, npc.def.combat.hitpoints, this.camera.quaternion)
+      if (npc.alive) {
+        updateHealthBar(view, npc.currentHp, npc.def.combat.hitpoints, this.camera.quaternion)
+      } else {
+        view.hpBar.visible = false
+      }
+      this.animateNpc(npc, view, now, dt, dying)
     }
 
     // Resource nodes: swap live/depleted looks; pulse fishing rings.
@@ -482,6 +495,55 @@ export class GameRenderer {
       flinch: dying ? 0 : decay01(now, this.lastHurtAt, FLINCH_MS),
       death: dying ? Math.min(1, (now - this.diedAt) / DEATH_FALL_MS) : 0,
       attackSwing: progress01(now, this.lastAttackAt, ATTACK_SWING_MS),
+    })
+  }
+
+  /** The lazily-created view (mesh + animation state) for an NPC. */
+  private npcView(npc: Npc): NpcView {
+    let view = this.npcViews.get(npc)
+    if (!view) {
+      view = createNpcMesh(this.resources, npc)
+      this.npcViews.set(npc, view)
+      this.dynamicRoot.add(view.group)
+    }
+    return view
+  }
+
+  /**
+   * Pick an NPC's pose + facing from engine state and drive its parts.
+   * Priority: death fall > walking (tick interpolation in progress, facing
+   * the movement direction) > combat stance facing its target > idle.
+   * Flinch/attack-lunge overlays come from the damageDealt events.
+   */
+  private animateNpc(npc: Npc, view: NpcView, now: number, dt: number, dying: boolean): void {
+    const state = this.movers.get(npc)
+    const t = clamp((now - this.lastTickAt) / TICK_MS, 0, 1)
+    const walking =
+      npc.alive && !!state && t < 1 && (state.px !== state.cx || state.py !== state.cy)
+
+    let pose: NpcPose = 'idle'
+    let faceTarget: number | null = null
+    if (dying) {
+      pose = 'death'
+    } else if (walking && state) {
+      pose = 'walk'
+      faceTarget = yawToward({ x: state.px, y: state.py }, { x: state.cx, y: state.cy })
+    } else if (npc.target) {
+      pose = 'combat'
+      faceTarget = yawToward(npc.position, npc.target.position)
+    }
+    if (faceTarget !== null) {
+      view.yaw = approachAngle(view.yaw, faceTarget, TURN_SPEED * dt)
+    }
+
+    updateNpcAnimation(view, {
+      pose,
+      now,
+      tickPhase: t,
+      yaw: view.yaw,
+      flinch: dying ? 0 : decay01(now, view.lastHurtAt, FLINCH_MS),
+      death: dying ? Math.min(1, (now - view.diedAt) / DEATH_FALL_MS) : 0,
+      attackSwing: progress01(now, view.lastAttackAt, ATTACK_SWING_MS),
     })
   }
 

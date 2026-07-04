@@ -205,6 +205,21 @@ describe('npc retaliation and aggression', () => {
     tickUntil(game, () => cow.target !== null)
     expect(cow.target).toBe(game.player)
   })
+
+  it('damageDealt carries the npc instance for both attack directions', () => {
+    const game = makeGame([{ defId: 'cow', x: 6, y: 7 }])
+    const cow = game.npcs[0]
+    const sources = new Set<string>()
+    game.events.on('damageDealt', (e) => {
+      expect(e.npc).toBe(cow)
+      sources.add(e.source)
+    })
+
+    game.player.attack(cow)
+    tickUntil(game, () => !cow.alive)
+    expect(sources.has('player')).toBe(true) // player hit the cow
+    expect(sources.has('npc')).toBe(true) // the cow retaliated at least once
+  })
 })
 
 describe('player death', () => {

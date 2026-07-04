@@ -14,7 +14,14 @@ export { createGroundItemMesh, updateGroundItemSpin } from './groundItem'
 export { createGroundTiles, type GroundTiles } from './groundTiles'
 export { createHealthBar, updateHealthBar, type HealthBarView } from './healthBar'
 export { createHoverOutline } from './hoverOutline'
-export { createNpcMesh, type NpcVariant, type NpcView } from './npcMesh'
+export {
+  createNpcMesh,
+  updateNpcAnimation,
+  type NpcAnimInput,
+  type NpcPose,
+  type NpcVariant,
+  type NpcView,
+} from './npcMesh'
 export {
   createPlayerMesh,
   updatePlayerAnimation,

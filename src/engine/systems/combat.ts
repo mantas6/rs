@@ -17,8 +17,16 @@ declare module '../core/eventBus' {
     /**
      * Emitted on every attack (damage 0 = miss/splash). `targetId` is the
      * NPC def id for player attacks and the literal 'player' for NPC attacks.
+     * `npc` is the NPC instance involved (the target of player attacks, the
+     * attacker for NPC attacks) so the UI can animate the right entity.
      */
-    damageDealt: { source: 'player' | 'npc'; targetId: string; damage: number; targetHpAfter: number }
+    damageDealt: {
+      source: 'player' | 'npc'
+      targetId: string
+      damage: number
+      targetHpAfter: number
+      npc: Npc
+    }
     /** Emitted when the player's hitpoints reach 0 (payload = death tile). */
     playerDied: { x: number; y: number }
   }
@@ -160,6 +168,7 @@ export function performPlayerAttack(game: Game, npc: Npc): void {
     targetId: npc.def.id,
     damage,
     targetHpAfter: npc.currentHp,
+    npc,
   })
   npc.setTarget(player)
   if (npc.currentHp <= 0) npc.die(game)
@@ -197,6 +206,7 @@ export function performNpcAttack(game: Game, npc: Npc): void {
     targetId: 'player',
     damage,
     targetHpAfter: hpBefore - damage,
+    npc,
   })
   if (hpBefore - damage <= 0) handlePlayerDeath(game)
 }
