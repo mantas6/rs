@@ -49,11 +49,19 @@ export function SidePanel({
   const skills = game.player.skills
   const hp = skills.getCurrentLevel('hitpoints')
   const maxHp = skills.getLevel('hitpoints')
+  // Fraction of health left, used to fill the orb vertically (and tint it
+  // green -> yellow -> red as it drains) so the orb shows health at a glance.
+  const hpFraction = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0
+  const hpColor = hpFraction > 0.5 ? '#3fbf4a' : hpFraction > 0.25 ? '#e2a400' : '#d1493c'
 
   return (
     <aside className="side-panel">
       <div className="status-row">
         <div className="hp-orb" title={`Hitpoints: ${hp}/${maxHp}`}>
+          <div
+            className="hp-orb-fill"
+            style={{ height: `${hpFraction * 100}%`, background: hpColor }}
+          />
           <span className="hp-orb-value">{hp}</span>
           <span className="hp-orb-max">/{maxHp}</span>
         </div>

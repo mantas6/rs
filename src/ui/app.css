@@ -169,10 +169,13 @@ button {
 }
 
 .hp-orb {
+  position: relative;
+  overflow: hidden;
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #d1493c, #6e1710);
+  /* Empty (drained) background; the fill rises over it from the bottom. */
+  background: #2a1108;
   border: 2px solid #2a1a10;
   display: flex;
   align-items: center;
@@ -180,6 +183,35 @@ button {
   color: #fff;
   font-weight: 700;
   font-size: 13px;
+}
+
+/* Health fill: anchored to the bottom, height set inline from hp fraction. */
+.hp-orb-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  transition: height 0.2s ease-out, background 0.2s ease-out;
+}
+
+/* Glossy highlight above the fill so the orb keeps its rounded sheen. */
+.hp-orb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.35), rgba(0, 0, 0, 0) 55%),
+    radial-gradient(circle at 50% 120%, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0) 60%);
+  pointer-events: none;
+}
+
+.hp-orb-value,
+.hp-orb-max {
+  position: relative;
+  z-index: 2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 
 .hp-orb-max {
