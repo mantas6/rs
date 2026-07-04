@@ -189,9 +189,10 @@ export interface FiremakingDef {
 }
 
 /**
- * Static world object definition (bank booths, cooking ranges). Placed in
- * the world like resource nodes (see engine/world/worldObject.ts); blocking
- * objects affect walkability exactly like blocking nodes do.
+ * Static world object definition (bank booths, cooking ranges, shop
+ * counters). Placed in the world like resource nodes (see
+ * engine/world/worldObject.ts); blocking objects affect walkability exactly
+ * like blocking nodes do.
  */
 export interface WorldObjectDef {
   id: string
@@ -203,6 +204,25 @@ export interface WorldObjectDef {
   bank?: boolean
   /** True when food can be cooked on the object (player.cook). */
   cookingSource?: boolean
+  /** Id of the shop the object opens (player.openShop), if any. */
+  shop?: string
+}
+
+/** One line of shop stock: an item sold at a fixed price, never sold out. */
+export interface ShopStockEntry {
+  itemId: string
+  /** Price in coins per item bought. 0 = free. */
+  price: number
+}
+
+/**
+ * Shop definition. Stock is unlimited (entries never sell out) so shops
+ * stay stateless and deterministic; buying only moves items and coins.
+ */
+export interface ShopDef {
+  id: string
+  name: string
+  stock: ShopStockEntry[]
 }
 
 /** Combat stat block of an NPC (melee only for now). */

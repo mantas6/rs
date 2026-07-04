@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Game } from './core/game'
 import type { Npc } from './entities/npc'
-import { createNewGame, STARTING_ITEMS } from './setup/newGame'
+import { createNewGame } from './setup/newGame'
 import { INVENTORY_SIZE } from './systems/inventory'
 import { SKILL_NAMES, type SkillName } from './systems/skills'
 import type { ResourceNode } from './world/resourceNode'
@@ -62,7 +62,7 @@ interface RunSummary {
 }
 
 /**
- * Play the full scenario: chop, burn, fish, cook, fight, loot, bank.
+ * Play the full scenario: shop, chop, burn, fish, cook, fight, loot, bank.
  * Every command is issued from observed game state only, so the run is a
  * pure function of the seed.
  */
@@ -70,9 +70,16 @@ function runScenario(seed: number): RunSummary {
   const game = createNewGame(seed)
   const { player } = game
 
-  // --- 1. Spawn with the starting kit; gear up. ---
-  for (const itemId of STARTING_ITEMS) {
-    expect(player.inventory.has(itemId), `starting kit has ${itemId}`).toBe(true)
+  // --- 1. Spawn empty-handed; buy the free starter kit; gear up. ---
+  expect(player.inventory.freeSlots, 'spawns with an empty inventory').toBe(INVENTORY_SIZE)
+  const counter = game.world.objects.find((o) => o.def.shop)
+  expect(counter, 'a shop counter exists').toBeDefined()
+  expect(player.openShop(counter!)).toBe(true)
+  tickUntil(game, () => game.shop.isOpen, 60, 'open the shop')
+  for (const { itemId, price } of game.shop.stock) {
+    expect(price, `${itemId} is free`).toBe(0)
+    expect(game.shop.buy(itemId)).toBe(1)
+    expect(player.inventory.has(itemId), `bought ${itemId}`).toBe(true)
   }
   expect(player.equip('bronze_sword')).toBe(true)
   expect(player.equip('wooden_shield')).toBe(true)
@@ -205,7 +212,7 @@ function runScenario(seed: number): RunSummary {
 }
 
 describe('headless Lumbridge playthrough', () => {
-  it('a bot plays the full loop: chop, burn, fish, cook, fight, loot, bank', () => {
+  it('a bot plays the full loop: shop, chop, burn, fish, cook, fight, loot, bank', () => {
     const summary = runScenario(SEED)
 
     // XP was earned in every skill the bot exercised.

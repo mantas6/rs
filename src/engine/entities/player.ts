@@ -14,6 +14,7 @@ import {
 import { GatherAction, validateGather } from '../systems/gathering'
 import { Inventory } from '../systems/inventory'
 import { getItemDef } from '../systems/itemRegistry'
+import { OpenShopAction } from '../systems/shop'
 import { Skills } from '../systems/skills'
 import {
   GROUND_ITEM_DESPAWN_TICKS,
@@ -39,6 +40,7 @@ export type PlayerActionKind =
   | 'firemaking'
   | 'cooking'
   | 'banking'
+  | 'shopping'
   | 'combat'
   | 'pickup'
 
@@ -360,6 +362,26 @@ export class Player {
     if (path === null) return false
     this.path = path
     this._action = new OpenBankAction(booth)
+    return true
+  }
+
+  /**
+   * Start opening the shop at a shop counter: queues a walk to an adjacent
+   * tile and sets an OpenShopAction (walk-then-act, like banking). Emits
+   * `actionFailed: invalid_source` for objects without a shop; returns
+   * false when the counter is unreachable (unreachable emits no event).
+   * The shop closes again on any movement (see shop.ts) or via
+   * `game.shop.close()`.
+   */
+  openShop(counter: WorldObject): boolean {
+    if (!counter.def.shop) {
+      this.events.emit('actionFailed', { reason: 'invalid_source' })
+      return false
+    }
+    const path = findPathAdjacent(this.world, this.position, counter.position)
+    if (path === null) return false
+    this.path = path
+    this._action = new OpenShopAction(counter)
     return true
   }
 

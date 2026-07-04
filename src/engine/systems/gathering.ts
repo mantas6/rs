@@ -8,6 +8,7 @@ import type { CombatFailReason } from './combat'
 import type { CookingFailReason } from './cooking'
 import type { FiremakingFailReason } from './firemaking'
 import { getItemDef } from './itemRegistry'
+import type { ShopFailReason } from './shop'
 import { MAX_LEVEL } from './skills'
 
 /** Why a gather attempt failed to start or was interrupted. */
@@ -24,6 +25,7 @@ export type ActionFailReason =
   | FiremakingFailReason
   | CookingFailReason
   | BankFailReason
+  | ShopFailReason
   | ConsumeFailReason
 
 // Gathering events, added via declaration merging (see eventBus.ts).

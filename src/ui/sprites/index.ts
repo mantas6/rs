@@ -30,5 +30,6 @@ export {
   type PlayerView,
 } from './playerMesh'
 export { createRockMesh } from './rock'
+export { createShopCounterMesh } from './shopCounter'
 export { createTreeMesh } from './tree'
 export { SpriteResources, tileGroup, type TilePos } from './resources'

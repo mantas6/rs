@@ -3,6 +3,7 @@ import { getNpcDef, Npc } from '../entities/npc'
 import { Player } from '../entities/player'
 import { Bank } from '../systems/bank'
 import { FireManager } from '../systems/firemaking'
+import { Shop } from '../systems/shop'
 import { GroundItemManager } from '../world/groundItems'
 import { getResourceNodeDef, ResourceNode } from '../world/resourceNode'
 import { World } from '../world/tileMap'
@@ -66,6 +67,7 @@ export class Game {
   readonly groundItems: GroundItemManager
   readonly fires: FireManager
   readonly bank: Bank
+  readonly shop: Shop
   /** Player spawn tile (also the death respawn point). */
   readonly spawn: Readonly<Vec2>
 
@@ -100,6 +102,10 @@ export class Game {
       () => this._tickCount,
     )
     this.bank = new Bank(this.events, this.player.inventory)
+    this.shop = new Shop(this.events, this.player.inventory)
+    // Only one interface may be open at a time (OSRS-style).
+    this.events.on('bankOpened', () => this.shop.close())
+    this.events.on('shopOpened', () => this.bank.close())
   }
 
   get tickCount(): number {

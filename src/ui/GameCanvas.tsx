@@ -93,7 +93,7 @@ export function GameCanvas({
     if (!hover || hover.x !== tile.x || hover.y !== tile.y) setHover(tile)
   }
 
-  /** OSRS-like left-click priority: NPC, node, bank, range, item, walk. */
+  /** OSRS-like left-click priority: NPC, node, bank, shop, range, item, walk. */
   function handleClick(e: MouseEvent<HTMLCanvasElement>): void {
     const tile = tileFromEvent(e)
     if (!tile) return
@@ -113,6 +113,10 @@ export function GameCanvas({
     const object = game.world.objectAt(x, y)
     if (object?.def.bank) {
       game.player.openBank(object)
+      return refresh()
+    }
+    if (object?.def.shop) {
+      game.player.openShop(object)
       return refresh()
     }
     if (object?.def.cookingSource) {
@@ -164,6 +168,12 @@ export function GameCanvas({
         options.push({
           label: `Bank ${object.def.name}`,
           onClick: () => game.player.openBank(object),
+        })
+      }
+      if (object.def.shop) {
+        options.push({
+          label: `Trade ${object.def.name}`,
+          onClick: () => game.player.openShop(object),
         })
       }
       if (object.def.cookingSource) {

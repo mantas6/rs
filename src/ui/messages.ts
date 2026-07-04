@@ -42,6 +42,9 @@ const FAIL_MESSAGES: Record<ActionFailReason, string> = {
   cannot_light_here: "You can't light a fire here.",
   invalid_source: "You can't use that here.",
   bank_closed: 'You need to open the bank first.',
+  shop_closed: 'You need to open the shop first.',
+  item_not_stocked: "The shop doesn't stock that.",
+  not_enough_coins: "You don't have enough coins to buy that.",
   not_food: "You can't eat that.",
 }
 
@@ -87,6 +90,11 @@ export function connectGameMessages(game: Game, store: MessageStore): () => void
     }),
     game.events.on('itemDropped', ({ itemId }) => {
       store.push(`You drop the ${getItemDef(itemId).name.toLowerCase()}.`)
+    }),
+    game.events.on('itemBought', ({ itemId, quantity, cost }) => {
+      const name = getItemDef(itemId).name.toLowerCase()
+      const what = quantity > 1 ? `${quantity} x ${name}` : `a ${name}`
+      store.push(cost > 0 ? `You buy ${what} for ${cost} coins.` : `You buy ${what}.`)
     }),
     game.events.on('npcDied', ({ npcId }) => {
       store.push(`You have defeated the ${getNpcDef(npcId).name.toLowerCase()}!`)

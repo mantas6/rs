@@ -12,7 +12,8 @@ import type { MapDef } from './types'
  * '.' = walkable, '#' = blocked. Layout (x grows east, y grows south):
  *
  * - Castle: walled courtyard at x6..20, y4..14 with the spawn (13, 10),
- *   a bank booth inside, and a gate in the south wall at x12..14.
+ *   a bank booth and a general-store counter inside, and a gate in the
+ *   south wall at x12..14.
  * - Kitchen house at x22..27, y10..14 with a cooking range inside and a
  *   door in the west wall at (22, 12).
  * - Chicken coop at x23..27, y3..6 with a gap in the south fence at (25, 6).
@@ -103,9 +104,13 @@ export const lumbridgeNodes: NodePlacement[] = [
   { defId: 'fishing_spot_net', x: 29, y: 24 },
 ]
 
-/** World objects: bank booth in the courtyard, range in the kitchen. */
+/**
+ * World objects: bank booth and general-store counter in the courtyard,
+ * range in the kitchen.
+ */
 export const lumbridgeObjects: ObjectPlacement[] = [
   { defId: 'bank_booth', x: 10, y: 6 },
+  { defId: 'shop_counter', x: 16, y: 6 },
   { defId: 'cooking_range', x: 25, y: 11 },
 ]
 

@@ -27,6 +27,7 @@ import {
   createNpcMesh,
   createPlayerMesh,
   createRockMesh,
+  createShopCounterMesh,
   createTreeMesh,
   decay01,
   progress01,
@@ -119,6 +120,7 @@ const ACTION_POSE: Record<PlayerActionKind, PlayerPose> = {
   firemaking: 'firemaking',
   cooking: 'cook',
   banking: 'bank',
+  shopping: 'bank',
   pickup: 'bank',
   combat: 'combat',
 }
@@ -303,13 +305,15 @@ export class GameRenderer {
     this.scene.add(this.groundMesh, this.blockedMesh)
   }
 
-  /** Bank booths and cooking ranges parked on their tiles. */
+  /** Bank booths, shop counters and cooking ranges parked on their tiles. */
   private buildStaticObjects(): void {
     for (const object of this.game.world.objects) {
       const { x, y } = object.position
       const group = object.def.bank
         ? createBankBoothMesh(this.resources, x, y)
-        : createCookingRangeMesh(this.resources, x, y)
+        : object.def.shop
+          ? createShopCounterMesh(this.resources, x, y)
+          : createCookingRangeMesh(this.resources, x, y)
       this.dynamicRoot.add(group)
     }
   }
@@ -480,7 +484,7 @@ export class GameRenderer {
       pose = ACTION_POSE[player.action.kind]
       const target = player.action.targetPosition
       if (target) faceTarget = yawToward(player.position, target)
-    } else if (this.game.bank.isOpen) {
+    } else if (this.game.bank.isOpen || this.game.shop.isOpen) {
       pose = 'bank'
     }
     if (faceTarget !== null) {

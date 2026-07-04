@@ -34,6 +34,9 @@ export function connectGameSounds(game: Game, audio: AudioManager): () => void {
     }),
     game.events.on('bankOpened', () => audio.play('bank')),
     game.events.on('bankClosed', () => audio.play('bank')),
+    game.events.on('shopOpened', () => audio.play('bank')),
+    game.events.on('shopClosed', () => audio.play('bank')),
+    game.events.on('itemBought', () => audio.play('pickup')),
   ]
   return () => {
     for (const unsubscribe of unsubscribes) unsubscribe()

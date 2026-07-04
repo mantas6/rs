@@ -1,5 +1,5 @@
-// Static world object definitions (bank booths, cooking ranges).
-// Data-only: plain objects, no logic.
+// Static world object definitions (bank booths, cooking ranges, shop
+// counters). Data-only: plain objects, no logic.
 import type { WorldObjectDef } from './types'
 
 export const worldObjects: Record<string, WorldObjectDef> = {
@@ -9,6 +9,13 @@ export const worldObjects: Record<string, WorldObjectDef> = {
     examine: 'It has a large pile of gold behind it.',
     blocksMovement: true,
     bank: true,
+  },
+  shop_counter: {
+    id: 'shop_counter',
+    name: 'Shop counter',
+    examine: 'The shopkeeper hands out starter gear for free.',
+    blocksMovement: true,
+    shop: 'lumbridge_general_store',
   },
   cooking_range: {
     id: 'cooking_range',

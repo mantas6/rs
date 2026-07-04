@@ -5,6 +5,7 @@ import type { MessageStore } from '../messages'
 import { BankPanel } from './BankPanel'
 import { EquipmentPanel } from './EquipmentPanel'
 import { InventoryPanel } from './InventoryPanel'
+import { ShopPanel } from './ShopPanel'
 import { SkillsPanel } from './SkillsPanel'
 
 type Tab = 'inventory' | 'skills' | 'equipment'
@@ -13,8 +14,9 @@ const TABS: readonly Tab[] = ['inventory', 'skills', 'equipment']
 
 /**
  * OSRS-style side panel: status row (HP orb, run toggle, audio toggles,
- * tick counter), tab strip, and the active tab's panel. While the bank is
- * open the bank interface replaces the tabbed panel.
+ * tick counter), tab strip, and the active tab's panel. While the bank or
+ * a shop is open, that interface replaces the tabbed panel (the engine
+ * guarantees at most one is open at a time).
  */
 export function SidePanel({
   game,
@@ -77,6 +79,8 @@ export function SidePanel({
 
       {game.bank.isOpen ? (
         <BankPanel game={game} store={store} refresh={refresh} />
+      ) : game.shop.isOpen ? (
+        <ShopPanel game={game} store={store} refresh={refresh} />
       ) : (
         <>
           <div className="tab-strip">
