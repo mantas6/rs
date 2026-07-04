@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { MouseEvent } from 'react'
-import { cookingRecipes, firemakingDefs } from '../../content/recipes'
-import type { CookingSource, Game } from '../../engine'
+import { cookingRecipes, firemakingDefs, smeltingRecipes } from '../../content/recipes'
+import type { CookingSource, Game, SmeltingSource } from '../../engine'
 import { chebyshev, getItemDef } from '../../engine'
 import { ContextMenu, type MenuOption, type MenuState } from '../ContextMenu'
 import { ItemIcon } from '../icons/ItemIcon'
@@ -23,6 +23,29 @@ function nearestCookingSource(game: Game): CookingSource | null {
     }
   }
   return best
+}
+
+/** Nearest furnace to smelt at, or null. */
+function nearestSmeltingSource(game: Game): SmeltingSource | null {
+  let best: SmeltingSource | null = null
+  let bestDistance = Infinity
+  for (const object of game.world.objects) {
+    if (object.def.smeltingSource !== true) continue
+    const distance = chebyshev(game.player.position, object.position)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      best = object
+    }
+  }
+  return best
+}
+
+/** The bar an ore smelts into (first recipe listing it as an input), or null. */
+function barForOre(itemId: string): string | null {
+  for (const recipe of Object.values(smeltingRecipes)) {
+    if (recipe.inputs.some((input) => input.itemId === itemId)) return recipe.barItemId
+  }
+  return null
 }
 
 /**
@@ -53,14 +76,22 @@ export function InventoryPanel({
     else game.player.cook(itemId, source)
   }
 
+  function smelt(barItemId: string): void {
+    const source = nearestSmeltingSource(game)
+    if (source === null) store.push('There is no furnace to smelt that at.')
+    else game.player.smelt(barItemId, source)
+  }
+
   function defaultAction(index: number): void {
     const slot = slots[index]
     if (!slot) return
     const def = getItemDef(slot.itemId)
+    const bar = barForOre(slot.itemId)
     if (def.equipment) equip(index)
     else if (def.healAmount !== undefined) game.player.eat(index)
     else if (firemakingDefs[slot.itemId]) game.player.lightFire(slot.itemId)
     else if (cookingRecipes[slot.itemId]) cook(slot.itemId)
+    else if (bar) smelt(bar)
     else if (def.buryXp !== undefined) game.player.bury(index)
     else store.push(def.examine)
     refresh()
@@ -82,6 +113,10 @@ export function InventoryPanel({
     }
     if (cookingRecipes[slot.itemId]) {
       options.push({ label: `Cook ${def.name}`, onClick: () => cook(slot.itemId) })
+    }
+    const bar = barForOre(slot.itemId)
+    if (bar) {
+      options.push({ label: `Smelt ${def.name}`, onClick: () => smelt(bar) })
     }
     if (def.buryXp !== undefined) {
       options.push({ label: `Bury ${def.name}`, onClick: () => game.player.bury(index) })

@@ -24,4 +24,11 @@ export const worldObjects: Record<string, WorldObjectDef> = {
     blocksMovement: true,
     cookingSource: true,
   },
+  furnace: {
+    id: 'furnace',
+    name: 'Furnace',
+    examine: 'Used to smelt ore into bars.',
+    blocksMovement: true,
+    smeltingSource: true,
+  },
 }

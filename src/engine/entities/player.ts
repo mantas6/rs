@@ -16,6 +16,7 @@ import { Inventory, type InventorySave } from '../systems/inventory'
 import { getItemDef } from '../systems/itemRegistry'
 import { OpenShopAction } from '../systems/shop'
 import { Skills, type SkillsSave } from '../systems/skills'
+import { SmeltAction, type SmeltingSource, getSmeltingRecipe, validateSmelt } from '../systems/smithing'
 import {
   GROUND_ITEM_DESPAWN_TICKS,
   type GroundItem,
@@ -39,6 +40,7 @@ export type PlayerActionKind =
   | 'fishing'
   | 'firemaking'
   | 'cooking'
+  | 'smithing'
   | 'banking'
   | 'shopping'
   | 'combat'
@@ -407,6 +409,29 @@ export class Player {
     if (path === null) return false
     this.path = path
     this._action = new CookAction(recipe, source)
+    return true
+  }
+
+  /**
+   * Start smelting ore into a metal bar at a furnace. Validates up front
+   * (source valid, level, has every ore input), emitting `actionFailed`
+   * with the reason on failure, then queues a walk to a tile adjacent to
+   * the furnace and sets a SmeltAction (walk-then-act, like cooking; one
+   * bar per SMELT_INTERVAL_TICKS). Returns false when validation fails or
+   * no adjacent tile is reachable (unreachable emits no event). Throws when
+   * no recipe exists for `barItemId`.
+   */
+  smelt(barItemId: string, source: SmeltingSource): boolean {
+    const recipe = getSmeltingRecipe(barItemId)
+    const reason = validateSmelt(this, recipe, source)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    const path = findPathAdjacent(this.world, this.position, source.position)
+    if (path === null) return false
+    this.path = path
+    this._action = new SmeltAction(recipe, source)
     return true
   }
 

@@ -21,6 +21,7 @@ import {
   createCookingRangeMesh,
   createFireMesh,
   createFishingSpotMesh,
+  createFurnaceMesh,
   createGroundItemMesh,
   createGroundTiles,
   createHitsplat,
@@ -148,6 +149,7 @@ const ACTION_POSE: Record<PlayerActionKind, PlayerPose> = {
   fishing: 'fish',
   firemaking: 'firemaking',
   cooking: 'cook',
+  smithing: 'cook', // stand over the furnace, same stance as cooking
   banking: 'bank',
   shopping: 'bank',
   pickup: 'bank',
@@ -442,7 +444,7 @@ export class GameRenderer {
     this.scene.add(this.groundMesh, this.waterMesh, this.stoneMesh)
   }
 
-  /** Bank booths, shop counters and cooking ranges parked on their tiles. */
+  /** Bank booths, shop counters, cooking ranges and furnaces on their tiles. */
   private buildStaticObjects(): void {
     for (const object of this.game.world.objects) {
       const { x, y } = object.position
@@ -450,7 +452,9 @@ export class GameRenderer {
         ? createBankBoothMesh(this.resources, x, y)
         : object.def.shop
           ? createShopCounterMesh(this.resources, x, y)
-          : createCookingRangeMesh(this.resources, x, y)
+          : object.def.smeltingSource
+            ? createFurnaceMesh(this.resources, x, y)
+            : createCookingRangeMesh(this.resources, x, y)
       this.dynamicRoot.add(group)
     }
   }

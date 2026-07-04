@@ -9,6 +9,7 @@ import type { CookingFailReason } from './cooking'
 import type { FiremakingFailReason } from './firemaking'
 import { getItemDef } from './itemRegistry'
 import type { ShopFailReason } from './shop'
+import type { SmeltingFailReason } from './smithing'
 import { MAX_LEVEL } from './skills'
 
 /** Why a gather attempt failed to start or was interrupted. */
@@ -24,6 +25,7 @@ export type ActionFailReason =
   | CombatFailReason
   | FiremakingFailReason
   | CookingFailReason
+  | SmeltingFailReason
   | BankFailReason
   | ShopFailReason
   | ConsumeFailReason

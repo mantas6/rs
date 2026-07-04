@@ -230,6 +230,13 @@ export const items: Record<string, ItemDef> = {
     stackable: false,
     value: 8,
   },
+  iron_bar: {
+    id: 'iron_bar',
+    name: 'Iron bar',
+    examine: "It's a bar of iron.",
+    stackable: false,
+    value: 17,
+  },
   raw_shrimps: {
     id: 'raw_shrimps',
     name: 'Raw shrimps',

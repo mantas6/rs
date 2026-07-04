@@ -50,6 +50,7 @@ const ICONS: Record<string, () => ReactElement> = {
   tin_ore: () => <OreIcon color="#c8c8d0" />,
   iron_ore: () => <OreIcon color="#8a4a3d" />,
   bronze_bar: () => <BarIcon color={BRONZE} />,
+  iron_bar: () => <BarIcon color={IRON} />,
   raw_shrimps: () => <ShrimpIcon color="#e8a0a8" />,
   shrimps: () => <ShrimpIcon color="#ef8f5a" />,
   burnt_shrimps: () => <ShrimpIcon color={BURNT} />,

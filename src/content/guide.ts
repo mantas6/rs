@@ -270,10 +270,27 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
   smithing: {
     skill: 'smithing',
     summary:
-      'Smelts ore into bars and forges equipment in classic OSRS. Smelting and smithing are not yet implemented.',
-    trainable: false,
-    steps: [],
-    notes: ['Copper and Tin ore from Mining would become Bronze bars once Smithing is added.'],
+      'Smelt ore into metal bars at a furnace. Bars are the raw material for forging equipment.',
+    trainable: true,
+    steps: [
+      {
+        level: 1,
+        action:
+          'Mine Copper and Tin ore, then use the furnace to smelt one of each into a Bronze bar (6.2 XP).',
+        itemIds: ['copper_ore', 'tin_ore', 'bronze_bar'],
+      },
+      {
+        level: 15,
+        action:
+          'Smithing 15 lets you smelt Iron ore into Iron bars (12.5 XP), but iron only smelts successfully half the time and the ore is lost on a failed attempt.',
+        itemIds: ['iron_ore', 'iron_bar'],
+      },
+    ],
+    notes: [
+      'The furnace stands on the plains just west of the south-eastern mine, so you can smelt the ore you dig without a long trek.',
+      'A Bronze bar needs one Copper and one Tin ore; an Iron bar needs a single Iron ore.',
+      'Forging bars into weapons and armour at an anvil is not yet implemented.',
+    ],
   },
   crafting: {
     skill: 'crafting',

@@ -190,6 +190,34 @@ export interface FiremakingDef {
   burnTicks: number
 }
 
+/** One ore input consumed by a smelting recipe. */
+export interface SmeltingInput {
+  itemId: string
+  /** Number of this ore consumed per smelt attempt. */
+  quantity: number
+}
+
+/**
+ * Smelting recipe definition (Smithing skill): ore turned into a metal bar
+ * at a furnace (see smithing.ts). Every input is consumed per attempt even
+ * when the smelt fails, matching OSRS iron smelting where the ore is lost.
+ */
+export interface SmeltingRecipeDef {
+  /** Bar produced on a successful smelt. */
+  barItemId: string
+  /** Ore(s) consumed per smelt attempt (consumed even on a failed smelt). */
+  inputs: SmeltingInput[]
+  /** Minimum (boostable) smithing level to smelt. */
+  levelRequired: number
+  /** Smithing xp per successful (non-failed) smelt. */
+  xp: number
+  /**
+   * Chance (0..1) that a smelt succeeds. Most bars are 1 (always succeed);
+   * iron smelts at 0.5, and a failed iron smelt still consumes the ore.
+   */
+  successChance: number
+}
+
 /**
  * Static world object definition (bank booths, cooking ranges, shop
  * counters). Placed in the world like resource nodes (see
@@ -206,6 +234,8 @@ export interface WorldObjectDef {
   bank?: boolean
   /** True when food can be cooked on the object (player.cook). */
   cookingSource?: boolean
+  /** True when ore can be smelted into bars on the object (player.smelt). */
+  smeltingSource?: boolean
   /** Id of the shop the object opens (player.openShop), if any. */
   shop?: string
 }

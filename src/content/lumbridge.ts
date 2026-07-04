@@ -35,7 +35,8 @@ import type { MapDef } from './types'
  * - Forest west/southwest and a great southern forest (regular + oak trees).
  * - Eastern woodland scattered across the open eastern plains.
  * - Mine in the southeast plus a larger southern mine and a far-eastern ore
- *   field (copper/tin/iron rocks placed as nodes).
+ *   field (copper/tin/iron rocks placed as nodes), with a furnace on the
+ *   plains just west of the south-eastern mine for smelting.
  * - Net fishing spots on the river banks and both ponds.
  * - Giant rats roam the swampy south-west; goblins and cows range the
  *   eastern and southern outlands.
@@ -200,12 +201,14 @@ export const lumbridgeNodes: NodePlacement[] = [
 
 /**
  * World objects: bank booth and general-store counter in the courtyard,
- * range in the kitchen.
+ * range in the kitchen, and a furnace just west of the south-eastern mine
+ * so miners can smelt the ore they dig without a long trek.
  */
 export const lumbridgeObjects: ObjectPlacement[] = [
   { defId: 'bank_booth', x: 10, y: 6 },
   { defId: 'shop_counter', x: 16, y: 6 },
   { defId: 'cooking_range', x: 25, y: 11 },
+  { defId: 'furnace', x: 36, y: 32 },
 ]
 
 /**

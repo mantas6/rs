@@ -67,6 +67,7 @@ const BUILDERS: Record<string, Builder> = {
   tin_ore: (r) => createOreModel(r, TIN),
   iron_ore: (r) => createOreModel(r, IRON_ORE),
   bronze_bar: (r) => createBarModel(r, BRONZE),
+  iron_bar: (r) => createBarModel(r, IRON),
 
   // Food (raw / cooked / burnt).
   raw_shrimps: (r) => createShrimpModel(r, SHRIMP_RAW),

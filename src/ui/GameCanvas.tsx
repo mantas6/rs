@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
-import { cookingRecipes } from '../content/recipes'
-import type { CookingSource, Game } from '../engine'
+import { cookingRecipes, smeltingRecipes } from '../content/recipes'
+import type { CookingSource, Game, SmeltingSource } from '../engine'
 import { getItemDef } from '../engine'
 import { ContextMenu, type MenuState } from './ContextMenu'
 import type { MessageStore } from './messages'
@@ -26,6 +26,24 @@ function cookFirstRaw(game: Game, source: CookingSource, store: MessageStore): v
   const rawItemId = firstRawItemId(game)
   if (rawItemId === null) store.push('You have nothing to cook.')
   else game.player.cook(rawItemId, source)
+}
+
+/** First bar whose ore inputs are all held in the inventory, or null. */
+function firstSmeltableBarId(game: Game): string | null {
+  for (const recipe of Object.values(smeltingRecipes)) {
+    const ready = recipe.inputs.every(({ itemId, quantity }) =>
+      game.player.inventory.has(itemId, quantity),
+    )
+    if (ready) return recipe.barItemId
+  }
+  return null
+}
+
+/** Smelt the first smeltable bar at `source` (message when no ore). */
+function smeltFirstOre(game: Game, source: SmeltingSource, store: MessageStore): void {
+  const barItemId = firstSmeltableBarId(game)
+  if (barItemId === null) store.push('You have no ore to smelt.')
+  else game.player.smelt(barItemId, source)
 }
 
 /**
@@ -117,6 +135,10 @@ export function GameCanvas({
       cookFirstRaw(game, object, store)
       return refresh()
     }
+    if (object?.def.smeltingSource) {
+      smeltFirstOre(game, object, store)
+      return refresh()
+    }
     const item = game.groundItems.itemsAt(x, y)[0]
     if (item) {
       game.player.pickUp(item)
@@ -174,6 +196,12 @@ export function GameCanvas({
         options.push({
           label: `Cook at ${object.def.name}`,
           onClick: () => cookFirstRaw(game, object, store),
+        })
+      }
+      if (object.def.smeltingSource) {
+        options.push({
+          label: `Smelt at ${object.def.name}`,
+          onClick: () => smeltFirstOre(game, object, store),
         })
       }
       examines.push({

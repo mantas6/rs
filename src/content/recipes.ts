@@ -1,6 +1,6 @@
-// Processing-skill definitions (cooking recipes, firemaking logs).
+// Processing-skill definitions (cooking recipes, firemaking logs, smelting).
 // Data-only: plain objects, no logic.
-import type { CookingRecipeDef, FiremakingDef } from './types'
+import type { CookingRecipeDef, FiremakingDef, SmeltingRecipeDef } from './types'
 
 /**
  * Cooking recipes, keyed by raw item id. Burn chance interpolates linearly
@@ -54,5 +54,31 @@ export const firemakingDefs: Record<string, FiremakingDef> = {
     levelRequired: 15,
     xp: 60,
     burnTicks: 150,
+  },
+}
+
+/**
+ * Smelting recipes (Smithing), keyed by the bar item id produced. Bronze is
+ * made from one Copper and one Tin ore and always succeeds; iron needs a
+ * single Iron ore but only smelts successfully half the time (a failed
+ * attempt still consumes the ore, like OSRS). See smithing.ts.
+ */
+export const smeltingRecipes: Record<string, SmeltingRecipeDef> = {
+  bronze_bar: {
+    barItemId: 'bronze_bar',
+    inputs: [
+      { itemId: 'copper_ore', quantity: 1 },
+      { itemId: 'tin_ore', quantity: 1 },
+    ],
+    levelRequired: 1,
+    xp: 6.2,
+    successChance: 1,
+  },
+  iron_bar: {
+    barItemId: 'iron_bar',
+    inputs: [{ itemId: 'iron_ore', quantity: 1 }],
+    levelRequired: 15,
+    xp: 12.5,
+    successChance: 0.5,
   },
 }
