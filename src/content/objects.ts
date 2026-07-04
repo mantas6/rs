@@ -45,4 +45,11 @@ export const worldObjects: Record<string, WorldObjectDef> = {
     blocksMovement: true,
     tanningSource: true,
   },
+  bar_counter: {
+    id: 'bar_counter',
+    name: 'Bar',
+    examine: 'A well-worn bar counter. The barman is pulling pints.',
+    blocksMovement: true,
+    shop: 'lumbridge_pub',
+  },
 }

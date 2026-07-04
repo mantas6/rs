@@ -551,4 +551,26 @@ export const items: Record<string, ItemDef> = {
     value: 2,
     healAmount: 2,
   },
+  beer: {
+    id: 'beer',
+    name: 'Beer',
+    examine: 'A glass of frothy ale.',
+    stackable: false,
+    value: 2,
+    drink: {
+      healAmount: 1,
+      boosts: [
+        { skill: 'strength', delta: 2 },
+        { skill: 'attack', delta: -3 },
+      ],
+      emptyItemId: 'beer_glass',
+    },
+  },
+  beer_glass: {
+    id: 'beer_glass',
+    name: 'Beer glass',
+    examine: 'The dregs of a fine ale. A true bokalas.',
+    stackable: false,
+    value: 1,
+  },
 }

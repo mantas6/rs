@@ -259,6 +259,28 @@ describe('shop: selling', () => {
   })
 })
 
+describe('shop: Lumbridge pub (beer)', () => {
+  it('sells beer at 2 coins each and keeps the general store free', () => {
+    const pub = getShopDef('lumbridge_pub')
+    const beer = pub.stock.find((s) => s.itemId === 'beer')
+    expect(beer?.price).toBe(2)
+    // The general store's starter kit stays free (unchanged by the pub).
+    for (const line of getShopDef('lumbridge_general_store').stock) {
+      expect(line.price, `${line.itemId} is free`).toBe(0)
+    }
+  })
+
+  it('buying beer charges coins and moves it into the inventory', () => {
+    const game = makeGame()
+    game.shop.open(getShopDef('lumbridge_pub'))
+    game.player.inventory.add('coins', 10)
+
+    expect(game.shop.buy('beer', 3)).toBe(3) // 3 x 2 = 6 coins
+    expect(game.player.inventory.count('beer')).toBe(3)
+    expect(game.player.inventory.count('coins')).toBe(4)
+  })
+})
+
 describe('shop: closed guard and interface exclusivity', () => {
   it('buy fails with shop_closed while shut', () => {
     const game = makeGame()

@@ -130,6 +130,7 @@ export function InventoryPanel({
     const bar = barForOre(slot.itemId)
     const product = productForBar(game, slot.itemId)
     if (def.equipment) equip(index)
+    else if (def.drink) game.player.drink(index)
     else if (def.healAmount !== undefined) game.player.eat(index)
     else if (firemakingDefs[slot.itemId]) game.player.lightFire(slot.itemId)
     else if (cookingRecipes[slot.itemId]) cook(slot.itemId)
@@ -190,6 +191,9 @@ export function InventoryPanel({
 
     const options: MenuOption[] = []
     if (def.equipment) options.push({ label: `Equip ${def.name}`, onClick: () => equip(index) })
+    if (def.drink) {
+      options.push({ label: `Drink ${def.name}`, onClick: () => game.player.drink(index) })
+    }
     if (def.healAmount !== undefined) {
       options.push({ label: `Eat ${def.name}`, onClick: () => game.player.eat(index) })
     }

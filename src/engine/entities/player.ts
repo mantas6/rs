@@ -85,8 +85,8 @@ export interface PlayerAction {
   readonly targetPosition?: Readonly<Vec2> | null
 }
 
-/** Why consuming an inventory item (eating/burying) failed. */
-export type ConsumeFailReason = 'not_food' | 'not_buryable'
+/** Why consuming an inventory item (eating/burying/drinking) failed. */
+export type ConsumeFailReason = 'not_food' | 'not_buryable' | 'not_drinkable'
 
 /**
  * JSON-safe snapshot of the player (see Player.serialize). The movement
@@ -108,6 +108,12 @@ declare module '../core/eventBus' {
   interface GameEvents {
     /** Emitted when the player eats food (the item is already consumed). */
     itemEaten: { itemId: string; healed: number; hpAfter: number }
+    /**
+     * Emitted when the player drinks a drinkable (the item is already
+     * consumed, boosts applied and any empty container added). `emptyItemId`
+     * is the container left behind, or null when the drink leaves nothing.
+     */
+    itemDrunk: { itemId: string; emptyItemId: string | null }
     /** Emitted when the player drops an inventory stack on the ground. */
     itemDropped: { itemId: string; quantity: number; x: number; y: number }
     /** Emitted when the player buries bones (the bone is already consumed). */
@@ -209,6 +215,45 @@ export class Player {
     const healed = Math.min(def.healAmount, Math.max(0, base - current))
     if (healed > 0) this.skills.boost('hitpoints', healed)
     this.events.emit('itemEaten', { itemId: def.id, healed, hpAfter: current + healed })
+    return true
+  }
+
+  /**
+   * Drink one drinkable item from an inventory slot (instant; no walking and
+   * the current action is kept). Consumes one item, heals `drink.healAmount`
+   * hitpoints (capped at the base level, like eat), applies each temporary
+   * boost/drain via Skills.boost, then adds `drink.emptyItemId` (the empty
+   * beer glass) to the inventory. Because the drink is removed first, its slot
+   * is normally free for the empty container; if the inventory still has no
+   * room, the empty container is simply discarded. Emits `itemDrunk` on
+   * success, `actionFailed: not_drinkable` for non-drinkable items, and
+   * returns false for an empty slot without emitting.
+   */
+  drink(slotIndex: number): boolean {
+    const stack = this.inventory.get(slotIndex)
+    if (stack === null) return false
+    const def = getItemDef(stack.itemId)
+    if (def.drink === undefined) {
+      this.events.emit('actionFailed', { reason: 'not_drinkable' })
+      return false
+    }
+    this.inventory.removeSlot(slotIndex, 1)
+    if (def.drink.healAmount !== undefined && def.drink.healAmount > 0) {
+      const base = this.skills.getLevel('hitpoints')
+      const current = this.skills.getCurrentLevel('hitpoints')
+      const healed = Math.min(def.drink.healAmount, Math.max(0, base - current))
+      if (healed > 0) this.skills.boost('hitpoints', healed)
+    }
+    for (const { skill, delta } of def.drink.boosts ?? []) {
+      this.skills.boost(skill, delta)
+    }
+    let emptyItemId: string | null = null
+    if (def.drink.emptyItemId !== undefined) {
+      // The drink's slot was just freed, so the empty container normally fits;
+      // if the inventory is somehow still full, it is simply discarded.
+      if (this.inventory.add(def.drink.emptyItemId) > 0) emptyItemId = def.drink.emptyItemId
+    }
+    this.events.emit('itemDrunk', { itemId: def.id, emptyItemId })
     return true
   }
 

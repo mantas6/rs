@@ -28,6 +28,9 @@ import type { MapDef } from './types'
  * - Chicken coop at x23..27, y3..6 with a gap in the south fence at (25, 6).
  * - Cow field east of the river at x36..45, y4..12 with a fence-gap
  *   entrance at (36, 8).
+ * - Pub ("The Sheared Ram") in the clearing south of the castle at x15..19,
+ *   y24..28 with a door in the south wall at (17, 28) and a bar counter
+ *   inside at (17, 25) that opens the pub's beer shop.
  *
  * WATER:
  * - River: 4 tiles of water at x30..33 running the full map height, crossed
@@ -77,11 +80,11 @@ export const lumbridgeMap: MapDef = {
     '#.............................####.....................................................#',
     '#.............................####.....................................................#',
     '#.............................####.....................................................#',
-    '#.............................####.....................................................#',
-    '#.............................####.....................................................#',
-    '#.............................####.....................................................#',
-    '#.............................####.....................................................#',
-    '#.............................####.....................................................#',
+    '#..............#####..........####.....................................................#',
+    '#..............#...#..........####.....................................................#',
+    '#..............#...#..........####.....................................................#',
+    '#..............#...#..........####.....................................................#',
+    '#..............##.##..........####.....................................................#',
     '#.............................####.....................................................#',
     '#.............................####.....................................................#',
     '#.............................####.....................................................#',
@@ -211,8 +214,9 @@ export const lumbridgeNodes: NodePlacement[] = [
  * World objects: bank booth and general-store counter in the courtyard,
  * range in the kitchen, a furnace + anvil just west of the south-eastern
  * mine so miners can smelt the ore they dig and forge the bars without a long
- * trek, and a tannery on the plains near the cow field so hides gathered
- * there can be tanned into leather on the spot.
+ * trek, a tannery on the plains near the cow field so hides gathered there can
+ * be tanned into leather on the spot, and a bar counter inside the pub south
+ * of the castle that opens the beer shop.
  */
 export const lumbridgeObjects: ObjectPlacement[] = [
   { defId: 'bank_booth', x: 10, y: 6 },
@@ -221,6 +225,7 @@ export const lumbridgeObjects: ObjectPlacement[] = [
   { defId: 'furnace', x: 36, y: 32 },
   { defId: 'anvil', x: 38, y: 32 },
   { defId: 'tannery', x: 50, y: 8 },
+  { defId: 'bar_counter', x: 17, y: 25 },
 ]
 
 /**

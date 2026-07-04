@@ -20,6 +20,7 @@ import {
   approachAngle,
   createAnvilMesh,
   createBankBoothMesh,
+  createBarCounterMesh,
   createBuildings,
   createCookingRangeMesh,
   createFarmPatchMesh,
@@ -477,13 +478,15 @@ export class GameRenderer {
       const { x, y } = object.position
       const group = object.def.bank
         ? createBankBoothMesh(this.resources, x, y)
-        : object.def.shop
-          ? createShopCounterMesh(this.resources, x, y)
-          : object.def.smeltingSource
-            ? createFurnaceMesh(this.resources, x, y)
-            : object.def.anvilSource
-              ? createAnvilMesh(this.resources, x, y)
-              : createCookingRangeMesh(this.resources, x, y)
+        : object.def.id === 'bar_counter'
+          ? createBarCounterMesh(this.resources, x, y)
+          : object.def.shop
+            ? createShopCounterMesh(this.resources, x, y)
+            : object.def.smeltingSource
+              ? createFurnaceMesh(this.resources, x, y)
+              : object.def.anvilSource
+                ? createAnvilMesh(this.resources, x, y)
+                : createCookingRangeMesh(this.resources, x, y)
       this.dynamicRoot.add(group)
     }
   }

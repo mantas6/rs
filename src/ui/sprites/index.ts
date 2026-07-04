@@ -57,6 +57,7 @@ export {
 } from './playerEquipment'
 export { createRockMesh } from './rock'
 export { createScenery, type SceneryView } from './scenery'
+export { createBarCounterMesh } from './barCounter'
 export { createShopCounterMesh } from './shopCounter'
 export { createTreeMesh } from './tree'
 export { SpriteResources, tileGroup, type TilePos } from './resources'

@@ -26,4 +26,11 @@ export const shops: Record<string, ShopDef> = {
       { itemId: 'cabbage_seed', price: 0 },
     ],
   },
+  lumbridge_pub: {
+    id: 'lumbridge_pub',
+    name: 'The Sheared Ram',
+    // The pub buys back empty glasses (and the odd item) at 40% of value.
+    sellRate: 0.4,
+    stock: [{ itemId: 'beer', price: 2 }],
+  },
 }

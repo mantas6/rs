@@ -102,6 +102,32 @@ export interface ToolDef {
   requiredLevel: number
 }
 
+/**
+ * Drinkable block for items that can be drunk (beer, and later potions).
+ * Drinking is instant (no walking), consumes one item, optionally heals a
+ * little and applies temporary stat boosts/drains, and may leave an empty
+ * container behind (e.g. beer -> empty beer glass). See player.drink.
+ */
+export interface DrinkDef {
+  /** Hitpoints restored on drink (like food's healAmount). Omit for none. */
+  healAmount?: number
+  /**
+   * Temporary stat changes applied on drink: positive = boost, negative =
+   * drain. Applied via Skills.boost, so they decay naturally toward the base
+   * level like every other boost (see skills.ts restoreTowardBase).
+   */
+  boosts?: { skill: SkillName; delta: number }[]
+  /**
+   * Item id left in the inventory after drinking (e.g. the empty beer glass).
+   * The empty container is added to the inventory after the drink is consumed;
+   * since the drink item is removed first, its slot is normally free for the
+   * container. In the rare case the inventory has no room for it, the empty
+   * container is simply discarded (kept simple; no floor drop). Omit when the
+   * drink leaves nothing behind.
+   */
+  emptyItemId?: string
+}
+
 /** Item definition. */
 export interface ItemDef {
   id: string
@@ -119,6 +145,8 @@ export interface ItemDef {
   buryXp?: number
   /** Present when the item is a gathering tool (axe/pickaxe/net). */
   tool?: ToolDef
+  /** Present when the item can be drunk (beer, potions). */
+  drink?: DrinkDef
 }
 
 /**

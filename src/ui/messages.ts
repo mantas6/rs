@@ -49,6 +49,7 @@ const FAIL_MESSAGES: Record<ActionFailReason, string> = {
   nothing_to_sell: "You don't have any of those to sell.",
   not_food: "You can't eat that.",
   not_buryable: "You can't bury that.",
+  not_drinkable: "You can't drink that.",
   missing_seed: "You don't have any of those seeds.",
   patch_occupied: 'This patch already has something growing in it.',
   patch_empty: 'There is nothing planted in this patch.',
@@ -94,6 +95,15 @@ export function connectGameMessages(game: Game, store: MessageStore): () => void
     game.events.on('itemEaten', ({ itemId, healed }) => {
       const name = getItemDef(itemId).name.toLowerCase()
       store.push(healed > 0 ? `You eat the ${name}. It heals some health.` : `You eat the ${name}.`)
+    }),
+    game.events.on('itemDrunk', ({ itemId, emptyItemId }) => {
+      const name = getItemDef(itemId).name.toLowerCase()
+      store.push(
+        `You drink the ${name}. You feel slightly reinvigorated but a bit less coordinated.`,
+      )
+      if (emptyItemId) {
+        store.push(`You are left holding an empty ${getItemDef(emptyItemId).name.toLowerCase()}.`)
+      }
     }),
     game.events.on('itemFletched', ({ productItemId, quantity }) => {
       const name = getItemDef(productItemId).name.toLowerCase()

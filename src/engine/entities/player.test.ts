@@ -191,6 +191,72 @@ describe('Player.eat', () => {
   })
 })
 
+describe('Player.drink', () => {
+  it('consumes the beer, leaves an empty glass, boosts/drains stats and heals', () => {
+    const game = makeGame()
+    game.player.inventory.add('beer')
+    game.player.skills.boost('hitpoints', -5) // 10 -> 5
+    const drunk: Array<{ itemId: string; emptyItemId: string | null }> = []
+    game.events.on('itemDrunk', (e) => drunk.push(e))
+
+    expect(game.player.drink(0)).toBe(true)
+    // Beer is gone, an empty beer glass is left in its place.
+    expect(game.player.inventory.count('beer')).toBe(0)
+    expect(game.player.inventory.count('beer_glass')).toBe(1)
+    // +2 strength boost, -3 attack drain (clamped at 0), +1 hitpoints heal.
+    expect(game.player.skills.getCurrentLevel('strength')).toBe(3) // base 1 + 2
+    expect(game.player.skills.getCurrentLevel('attack')).toBe(0) // base 1 - 3, clamped
+    expect(game.player.skills.getCurrentLevel('hitpoints')).toBe(6) // 5 + 1
+    expect(drunk).toEqual([{ itemId: 'beer', emptyItemId: 'beer_glass' }])
+  })
+
+  it('caps the heal at base hitpoints (drinking at full hp still consumes)', () => {
+    const game = makeGame()
+    game.player.inventory.add('beer')
+
+    expect(game.player.drink(0)).toBe(true)
+    expect(game.player.skills.getCurrentLevel('hitpoints')).toBe(10) // unchanged
+    expect(game.player.inventory.count('beer_glass')).toBe(1)
+  })
+
+  it('keeps the empty glass in the just-freed slot even when the pack was full', () => {
+    const game = makeGame()
+    // Fill 27 slots with non-stackables, then the beer takes the 28th slot.
+    for (let i = 0; i < 27; i++) game.player.inventory.add('bones')
+    game.player.inventory.add('beer')
+    expect(game.player.inventory.isFull).toBe(true)
+    const beerSlot = game.player.inventory.slots.findIndex((s) => s?.itemId === 'beer')
+
+    // Drinking removes the beer (freeing its slot), so the empty glass fits.
+    expect(game.player.drink(beerSlot)).toBe(true)
+    expect(game.player.inventory.count('beer')).toBe(0)
+    expect(game.player.inventory.count('beer_glass')).toBe(1)
+  })
+
+  it('emits actionFailed: not_drinkable for non-drinkable items and keeps them', () => {
+    const game = makeGame()
+    game.player.inventory.add('tinderbox')
+    const failures: string[] = []
+    game.events.on('actionFailed', (e) => failures.push(e.reason))
+
+    expect(game.player.drink(0)).toBe(false)
+    expect(failures).toEqual(['not_drinkable'])
+    expect(game.player.inventory.count('tinderbox')).toBe(1)
+  })
+
+  it('returns false for an empty slot without emitting', () => {
+    const game = makeGame()
+    const failures: string[] = []
+    const drunk: unknown[] = []
+    game.events.on('actionFailed', (e) => failures.push(e.reason))
+    game.events.on('itemDrunk', (e) => drunk.push(e))
+
+    expect(game.player.drink(0)).toBe(false)
+    expect(failures).toEqual([])
+    expect(drunk).toEqual([])
+  })
+})
+
 describe('Player.drop', () => {
   it('drops the whole stack on the player tile with a despawn timer', () => {
     const game = makeGame()
