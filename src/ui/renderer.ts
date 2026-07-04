@@ -46,7 +46,12 @@ import {
   type PlayerView,
 } from './sprites'
 
-/** Canvas viewport size in pixels. */
+/**
+ * Fallback canvas viewport size in pixels. The live canvas is no longer
+ * locked to this — GameRenderer observes its container and resizes to fill
+ * it (see `resize`) — but these are kept as the initial/aspect fallback and
+ * for any code that still wants a nominal size.
+ */
 export const VIEW_W = 720
 export const VIEW_H = 480
 
@@ -62,6 +67,17 @@ function clamp(value: number, min: number, max: number): number {
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
+}
+
+/** Centroid + finger spread of a two-finger touch, for orbit/pinch. */
+function touchInfo(e: TouchEvent): { x: number; y: number; dist: number } {
+  const a = e.touches[0]
+  const b = e.touches[1]
+  return {
+    x: (a.clientX + b.clientX) / 2,
+    y: (a.clientY + b.clientY) / 2,
+    dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+  }
 }
 
 /**
@@ -191,6 +207,11 @@ export class GameRenderer {
   private camDist = 13
   private readonly pressedKeys = new Set<string>()
   private middleDrag: { x: number; y: number } | null = null
+  // Two-finger touch orbit/pinch state (centroid + finger spread).
+  private touchGesture: { x: number; y: number; dist: number } | null = null
+
+  // Keeps the renderer/camera matched to the canvas container's box.
+  private readonly resizeObserver: ResizeObserver
 
   private rafId = 0
   private lastFrameAt = performance.now()
@@ -230,16 +251,52 @@ export class GameRenderer {
     this.pressedKeys.delete(e.key)
   }
 
+  // Touch camera fallback: two fingers orbit (centroid drag) and pinch to
+  // zoom. Single-finger taps are left to GameCanvas so tap-to-interact works.
+  private readonly onTouchStart = (e: TouchEvent): void => {
+    if (e.touches.length !== 2) return
+    e.preventDefault()
+    this.touchGesture = touchInfo(e)
+  }
+  private readonly onTouchMove = (e: TouchEvent): void => {
+    if (e.touches.length !== 2 || !this.touchGesture) return
+    e.preventDefault()
+    const info = touchInfo(e)
+    this.camYaw -= (info.x - this.touchGesture.x) * 0.008
+    this.camPitch = clamp(
+      this.camPitch + (info.y - this.touchGesture.y) * 0.005,
+      CAM_MIN_PITCH,
+      CAM_MAX_PITCH,
+    )
+    if (this.touchGesture.dist > 0 && info.dist > 0) {
+      this.camDist = clamp(
+        this.camDist * (this.touchGesture.dist / info.dist),
+        CAM_MIN_DIST,
+        CAM_MAX_DIST,
+      )
+    }
+    this.touchGesture = info
+  }
+  private readonly onTouchEnd = (e: TouchEvent): void => {
+    if (e.touches.length < 2) this.touchGesture = null
+  }
+
   constructor(canvas: HTMLCanvasElement, game: Game) {
     this.canvas = canvas
     this.game = game
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
+
+    // Size to the container's box (fallback to the nominal view if it hasn't
+    // been laid out yet); the ResizeObserver below keeps it in sync.
+    const parent = canvas.parentElement
+    const initialW = parent?.clientWidth || VIEW_W
+    const initialH = parent?.clientHeight || VIEW_H
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    this.renderer.setSize(VIEW_W, VIEW_H, false)
+    this.renderer.setSize(initialW, initialH, false)
     this.scene.background = new THREE.Color(0x0d0b08)
     this.scene.fog = new THREE.Fog(0x0d0b08, 30, 60)
 
-    this.camera = new THREE.PerspectiveCamera(50, VIEW_W / VIEW_H, 0.1, 200)
+    this.camera = new THREE.PerspectiveCamera(50, initialW / initialH, 0.1, 200)
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.65))
     const sun = new THREE.DirectionalLight(0xfff2d8, 1.1)
@@ -281,10 +338,21 @@ export class GameRenderer {
 
     canvas.addEventListener('wheel', this.onWheel, { passive: false })
     canvas.addEventListener('mousedown', this.onMouseDown)
+    canvas.addEventListener('touchstart', this.onTouchStart, { passive: false })
+    canvas.addEventListener('touchmove', this.onTouchMove, { passive: false })
+    canvas.addEventListener('touchend', this.onTouchEnd)
+    canvas.addEventListener('touchcancel', this.onTouchEnd)
     window.addEventListener('mousemove', this.onMouseMove)
     window.addEventListener('mouseup', this.onMouseUp)
     window.addEventListener('keydown', this.onKeyDown)
     window.addEventListener('keyup', this.onKeyUp)
+
+    // Keep the drawing buffer + camera aspect matched to the container.
+    this.resizeObserver = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect
+      if (rect) this.resize(rect.width, rect.height)
+    })
+    if (parent) this.resizeObserver.observe(parent)
 
     const loop = (): void => {
       if (this.disposed) return
@@ -386,6 +454,20 @@ export class GameRenderer {
   /** Force an immediate state sync + draw (e.g. after a UI command). */
   syncNow(): void {
     if (!this.disposed) this.renderFrame()
+  }
+
+  /**
+   * Match the drawing buffer and camera aspect to the container's CSS box.
+   * The canvas keeps its 100%×100% CSS size (setSize's updateStyle=false),
+   * so picking (which uses getBoundingClientRect) stays accurate.
+   */
+  private resize(width: number, height: number): void {
+    if (this.disposed || width === 0 || height === 0) return
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    this.renderer.setSize(width, height, false)
+    this.camera.aspect = width / height
+    this.camera.updateProjectionMatrix()
+    this.renderFrame()
   }
 
   private syncScene(now: number, dt: number): void {
@@ -626,8 +708,13 @@ export class GameRenderer {
     cancelAnimationFrame(this.rafId)
     this.unsubscribeTick()
     for (const unsubscribe of this.unsubscribeAnimEvents) unsubscribe()
+    this.resizeObserver.disconnect()
     this.canvas.removeEventListener('wheel', this.onWheel)
     this.canvas.removeEventListener('mousedown', this.onMouseDown)
+    this.canvas.removeEventListener('touchstart', this.onTouchStart)
+    this.canvas.removeEventListener('touchmove', this.onTouchMove)
+    this.canvas.removeEventListener('touchend', this.onTouchEnd)
+    this.canvas.removeEventListener('touchcancel', this.onTouchEnd)
     window.removeEventListener('mousemove', this.onMouseMove)
     window.removeEventListener('mouseup', this.onMouseUp)
     window.removeEventListener('keydown', this.onKeyDown)

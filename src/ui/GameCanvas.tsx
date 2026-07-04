@@ -5,14 +5,7 @@ import type { CookingSource, Game } from '../engine'
 import { getItemDef } from '../engine'
 import { ContextMenu, type MenuState } from './ContextMenu'
 import type { MessageStore } from './messages'
-import {
-  describeTile,
-  GameRenderer,
-  type Hover,
-  npcCombatLevel,
-  VIEW_H,
-  VIEW_W,
-} from './renderer'
+import { describeTile, GameRenderer, type Hover, npcCombatLevel } from './renderer'
 
 const GATHER_VERBS: Record<string, string> = {
   woodcutting: 'Chop down',
@@ -40,8 +33,9 @@ function cookFirstRaw(game: Game, source: CookingSource, store: MessageStore): v
  * (see renderer.ts) plus left-click commands and a right-click context
  * menu. Clicks are mapped to map tiles via raycast picking, so all
  * behavior still goes through engine command APIs — no game logic here.
- * Camera controls (middle-drag / arrow keys / scroll zoom) live in the
- * renderer itself.
+ * A left-click and a single-finger tap both map to the same command path.
+ * Camera controls (middle-drag / arrow keys / scroll zoom, plus two-finger
+ * orbit and pinch-zoom on touch) live in the renderer itself.
  */
 export function GameCanvas({
   game,
@@ -225,8 +219,6 @@ export function GameCanvas({
       <canvas
         ref={canvasRef}
         className="game-canvas"
-        width={VIEW_W}
-        height={VIEW_H}
         title={hoverLabel ?? undefined}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHover(null)}

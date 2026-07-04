@@ -10,6 +10,12 @@ body,
   height: 100%;
 }
 
+html,
+body {
+  /* The game owns the viewport: never let the page itself scroll. */
+  overflow: hidden;
+}
+
 body {
   background: #16130f;
   color: #e8dcc0;
@@ -23,29 +29,54 @@ button {
 
 /* ---- Layout: canvas + log on the left, side panel on the right ---- */
 
+/*
+ * The app fills the viewport exactly (100dvh so iOS Safari's dynamic
+ * toolbar can't cause overflow) and never scrolls. The game area flexes
+ * to fill the space left of a fixed-width side panel; on narrow/portrait
+ * screens the two stack (see the media query below). min-height/min-width:0
+ * on the flex children lets them shrink and scroll internally instead of
+ * forcing the page to grow.
+ */
 .app {
-  min-height: 100%;
+  height: 100dvh;
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: center;
   gap: 10px;
   padding: 10px;
+  overflow: hidden;
 }
 
 .app-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
+/* The canvas fills this box; it carries the border so the buffer size the
+   renderer observes (the wrap's content box) matches the drawn area. */
 .game-canvas-wrap {
-  line-height: 0;
   position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  line-height: 0;
+  border: 2px solid #5a4a2f;
+  background: #000;
 }
 
 .game-canvas {
-  border: 2px solid #5a4a2f;
-  background: #000;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* Prevent the browser from panning/zooming the page over the canvas so
+     taps hit tiles and two-finger gestures reach the camera controls. */
+  touch-action: none;
 }
 
 /* OSRS-style hover action text in the viewport's top-left corner. */
@@ -65,7 +96,8 @@ button {
 /* ---- Message log ---- */
 
 .message-log {
-  width: 724px;
+  flex: 0 0 auto;
+  width: 100%;
   height: 120px;
   overflow-y: auto;
   background: #211b12;
@@ -82,13 +114,34 @@ button {
 /* ---- Side panel ---- */
 
 .side-panel {
+  flex: 0 0 280px;
   width: 280px;
+  min-height: 0;
+  overflow-y: auto;
   background: #3b3020;
   border: 2px solid #5a4a2f;
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/*
+ * Narrow / tablet-portrait screens: stack the game above the side panel.
+ * The panel takes its natural height (capped) and scrolls internally, so
+ * everything stays within the viewport without scrolling the page.
+ */
+@media (max-width: 760px) {
+  .app {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .side-panel {
+    flex: 0 1 auto;
+    width: 100%;
+    max-height: 45dvh;
+  }
 }
 
 .status-row {
@@ -448,6 +501,8 @@ button {
 }
 
 .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 10px;
   overflow: auto;
 }
