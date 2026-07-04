@@ -2,6 +2,7 @@
 // (renderer.ts) imports from here and only does orchestration — scene setup,
 // camera, picking, interpolation — never mesh construction.
 export { approachAngle, decay01, progress01, yawToward } from './animation'
+export { createAnvilMesh } from './anvil'
 export { createBankBoothMesh } from './bankBooth'
 export { createChickenMesh } from './chickenMesh'
 export { createCookingRangeMesh } from './cookingRange'

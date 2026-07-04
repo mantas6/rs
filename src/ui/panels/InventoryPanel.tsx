@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import type { DragEvent, MouseEvent } from 'react'
-import { cookingRecipes, firemakingDefs, smeltingRecipes } from '../../content/recipes'
-import type { CookingSource, Game, SmeltingSource } from '../../engine'
+import { cookingRecipes, firemakingDefs, smeltingRecipes, smithingRecipes } from '../../content/recipes'
+import type { AnvilSource, CookingSource, Game, SmeltingSource } from '../../engine'
 import { chebyshev, getItemDef } from '../../engine'
 import { ContextMenu, type MenuOption, type MenuState } from '../ContextMenu'
 import { ItemIcon } from '../icons/ItemIcon'
@@ -48,6 +48,35 @@ function barForOre(itemId: string): string | null {
   return null
 }
 
+/** Nearest anvil to forge at, or null. */
+function nearestAnvilSource(game: Game): AnvilSource | null {
+  let best: AnvilSource | null = null
+  let bestDistance = Infinity
+  for (const object of game.world.objects) {
+    if (object.def.anvilSource !== true) continue
+    const distance = chebyshev(game.player.position, object.position)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      best = object
+    }
+  }
+  return best
+}
+
+/**
+ * The first product forgeable from `barItemId` that the player has the level
+ * for and enough bars to make, or null. Lets a bar in the backpack offer a
+ * sensible default "Smith" action.
+ */
+function productForBar(game: Game, barItemId: string): string | null {
+  for (const recipe of Object.values(smithingRecipes)) {
+    if (recipe.barItemId !== barItemId) continue
+    if (game.player.skills.getCurrentLevel('smithing') < recipe.levelRequired) continue
+    if (game.player.inventory.has(recipe.barItemId, recipe.barsRequired)) return recipe.productItemId
+  }
+  return null
+}
+
 /**
  * 4x7 backpack grid. Left click runs the context-sensitive default
  * (equip / eat / light / cook / examine); right click opens the full menu.
@@ -88,16 +117,24 @@ export function InventoryPanel({
     else game.player.smelt(barItemId, source)
   }
 
+  function forge(productItemId: string): void {
+    const source = nearestAnvilSource(game)
+    if (source === null) store.push('There is no anvil to smith that at.')
+    else game.player.forge(productItemId, source)
+  }
+
   function defaultAction(index: number): void {
     const slot = slots[index]
     if (!slot) return
     const def = getItemDef(slot.itemId)
     const bar = barForOre(slot.itemId)
+    const product = productForBar(game, slot.itemId)
     if (def.equipment) equip(index)
     else if (def.healAmount !== undefined) game.player.eat(index)
     else if (firemakingDefs[slot.itemId]) game.player.lightFire(slot.itemId)
     else if (cookingRecipes[slot.itemId]) cook(slot.itemId)
     else if (bar) smelt(bar)
+    else if (product) forge(product)
     else if (def.buryXp !== undefined) game.player.bury(index)
     else store.push(def.examine)
     refresh()
@@ -165,6 +202,10 @@ export function InventoryPanel({
     const bar = barForOre(slot.itemId)
     if (bar) {
       options.push({ label: `Smelt ${def.name}`, onClick: () => smelt(bar) })
+    }
+    const product = productForBar(game, slot.itemId)
+    if (product) {
+      options.push({ label: `Smith ${def.name}`, onClick: () => forge(product) })
     }
     if (def.buryXp !== undefined) {
       options.push({ label: `Bury ${def.name}`, onClick: () => game.player.bury(index) })

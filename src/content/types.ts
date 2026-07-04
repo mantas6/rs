@@ -219,6 +219,24 @@ export interface SmeltingRecipeDef {
 }
 
 /**
+ * Smithing (forging) recipe definition: metal bars hammered into a finished
+ * item at an anvil (see smithing.ts). Unlike smelting, forging always
+ * succeeds — the bars are consumed and the product is produced every time.
+ */
+export interface SmithingRecipeDef {
+  /** Item produced per successful forge. */
+  productItemId: string
+  /** Bar consumed to forge the product. */
+  barItemId: string
+  /** Number of bars consumed per forge. */
+  barsRequired: number
+  /** Minimum (boostable) smithing level to forge. */
+  levelRequired: number
+  /** Smithing xp per forge. */
+  xp: number
+}
+
+/**
  * Static world object definition (bank booths, cooking ranges, shop
  * counters). Placed in the world like resource nodes (see
  * engine/world/worldObject.ts); blocking objects affect walkability exactly
@@ -236,6 +254,8 @@ export interface WorldObjectDef {
   cookingSource?: boolean
   /** True when ore can be smelted into bars on the object (player.smelt). */
   smeltingSource?: boolean
+  /** True when bars can be forged into items on the object (player.forge). */
+  anvilSource?: boolean
   /** Id of the shop the object opens (player.openShop), if any. */
   shop?: string
 }

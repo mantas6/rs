@@ -31,4 +31,11 @@ export const worldObjects: Record<string, WorldObjectDef> = {
     blocksMovement: true,
     smeltingSource: true,
   },
+  anvil: {
+    id: 'anvil',
+    name: 'Anvil',
+    examine: 'Used to hammer bars into equipment.',
+    blocksMovement: true,
+    anvilSource: true,
+  },
 }

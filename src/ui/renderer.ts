@@ -17,6 +17,7 @@ import type { Fire, Game, GroundItem, Npc, PlayerActionKind, ResourceNode } from
 import { getItemDef, TICK_MS } from '../engine'
 import {
   approachAngle,
+  createAnvilMesh,
   createBankBoothMesh,
   createCookingRangeMesh,
   createFireMesh,
@@ -444,7 +445,7 @@ export class GameRenderer {
     this.scene.add(this.groundMesh, this.waterMesh, this.stoneMesh)
   }
 
-  /** Bank booths, shop counters, cooking ranges and furnaces on their tiles. */
+  /** Bank booths, shop counters, cooking ranges, furnaces and anvils on their tiles. */
   private buildStaticObjects(): void {
     for (const object of this.game.world.objects) {
       const { x, y } = object.position
@@ -454,7 +455,9 @@ export class GameRenderer {
           ? createShopCounterMesh(this.resources, x, y)
           : object.def.smeltingSource
             ? createFurnaceMesh(this.resources, x, y)
-            : createCookingRangeMesh(this.resources, x, y)
+            : object.def.anvilSource
+              ? createAnvilMesh(this.resources, x, y)
+              : createCookingRangeMesh(this.resources, x, y)
       this.dynamicRoot.add(group)
     }
   }

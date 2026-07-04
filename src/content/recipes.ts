@@ -1,6 +1,6 @@
 // Processing-skill definitions (cooking recipes, firemaking logs, smelting).
 // Data-only: plain objects, no logic.
-import type { CookingRecipeDef, FiremakingDef, SmeltingRecipeDef } from './types'
+import type { CookingRecipeDef, FiremakingDef, SmeltingRecipeDef, SmithingRecipeDef } from './types'
 
 /**
  * Cooking recipes, keyed by raw item id. Burn chance interpolates linearly
@@ -80,5 +80,57 @@ export const smeltingRecipes: Record<string, SmeltingRecipeDef> = {
     levelRequired: 15,
     xp: 12.5,
     successChance: 0.5,
+  },
+}
+
+/**
+ * Smithing (forging) recipes, keyed by the product item id. Bronze bars are
+ * hammered into finished bronze equipment at an anvil (see smithing.ts).
+ * Forging always succeeds; each attempt consumes `barsRequired` bars and
+ * grants 12.5 smithing xp per bar used (matching OSRS bronze). Levels and
+ * bar counts follow OSRS for each bronze item.
+ */
+export const smithingRecipes: Record<string, SmithingRecipeDef> = {
+  bronze_axe: {
+    productItemId: 'bronze_axe',
+    barItemId: 'bronze_bar',
+    barsRequired: 1,
+    levelRequired: 1,
+    xp: 12.5,
+  },
+  bronze_sword: {
+    productItemId: 'bronze_sword',
+    barItemId: 'bronze_bar',
+    barsRequired: 1,
+    levelRequired: 4,
+    xp: 12.5,
+  },
+  bronze_scimitar: {
+    productItemId: 'bronze_scimitar',
+    barItemId: 'bronze_bar',
+    barsRequired: 2,
+    levelRequired: 5,
+    xp: 25,
+  },
+  bronze_full_helm: {
+    productItemId: 'bronze_full_helm',
+    barItemId: 'bronze_bar',
+    barsRequired: 2,
+    levelRequired: 7,
+    xp: 25,
+  },
+  bronze_platelegs: {
+    productItemId: 'bronze_platelegs',
+    barItemId: 'bronze_bar',
+    barsRequired: 3,
+    levelRequired: 16,
+    xp: 37.5,
+  },
+  bronze_platebody: {
+    productItemId: 'bronze_platebody',
+    barItemId: 'bronze_bar',
+    barsRequired: 5,
+    levelRequired: 18,
+    xp: 62.5,
   },
 }

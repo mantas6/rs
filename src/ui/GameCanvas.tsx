@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
-import { cookingRecipes, smeltingRecipes } from '../content/recipes'
-import type { CookingSource, Game, SmeltingSource } from '../engine'
+import { cookingRecipes, smeltingRecipes, smithingRecipes } from '../content/recipes'
+import type { AnvilSource, CookingSource, Game, SmeltingSource } from '../engine'
 import { getItemDef } from '../engine'
 import { ContextMenu, type MenuState } from './ContextMenu'
 import type { MessageStore } from './messages'
@@ -44,6 +44,22 @@ function smeltFirstOre(game: Game, source: SmeltingSource, store: MessageStore):
   const barItemId = firstSmeltableBarId(game)
   if (barItemId === null) store.push('You have no ore to smelt.')
   else game.player.smelt(barItemId, source)
+}
+
+/** First product the player can forge now (has the bars and the level), or null. */
+function firstForgeableProductId(game: Game): string | null {
+  for (const recipe of Object.values(smithingRecipes)) {
+    if (game.player.skills.getCurrentLevel('smithing') < recipe.levelRequired) continue
+    if (game.player.inventory.has(recipe.barItemId, recipe.barsRequired)) return recipe.productItemId
+  }
+  return null
+}
+
+/** Forge the first forgeable product at `source` (message when no bars). */
+function forgeFirstBar(game: Game, source: AnvilSource, store: MessageStore): void {
+  const productItemId = firstForgeableProductId(game)
+  if (productItemId === null) store.push('You have no bars to forge here.')
+  else game.player.forge(productItemId, source)
 }
 
 /**
@@ -139,6 +155,10 @@ export function GameCanvas({
       smeltFirstOre(game, object, store)
       return refresh()
     }
+    if (object?.def.anvilSource) {
+      forgeFirstBar(game, object, store)
+      return refresh()
+    }
     const item = game.groundItems.itemsAt(x, y)[0]
     if (item) {
       game.player.pickUp(item)
@@ -202,6 +222,12 @@ export function GameCanvas({
         options.push({
           label: `Smelt at ${object.def.name}`,
           onClick: () => smeltFirstOre(game, object, store),
+        })
+      }
+      if (object.def.anvilSource) {
+        options.push({
+          label: `Smith at ${object.def.name}`,
+          onClick: () => forgeFirstBar(game, object, store),
         })
       }
       examines.push({

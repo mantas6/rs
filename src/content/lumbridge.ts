@@ -201,14 +201,16 @@ export const lumbridgeNodes: NodePlacement[] = [
 
 /**
  * World objects: bank booth and general-store counter in the courtyard,
- * range in the kitchen, and a furnace just west of the south-eastern mine
- * so miners can smelt the ore they dig without a long trek.
+ * range in the kitchen, and a furnace + anvil just west of the south-eastern
+ * mine so miners can smelt the ore they dig and forge the bars without a long
+ * trek.
  */
 export const lumbridgeObjects: ObjectPlacement[] = [
   { defId: 'bank_booth', x: 10, y: 6 },
   { defId: 'shop_counter', x: 16, y: 6 },
   { defId: 'cooking_range', x: 25, y: 11 },
   { defId: 'furnace', x: 36, y: 32 },
+  { defId: 'anvil', x: 38, y: 32 },
 ]
 
 /**

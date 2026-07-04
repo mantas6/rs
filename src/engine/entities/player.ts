@@ -16,7 +16,16 @@ import { Inventory, type InventorySave } from '../systems/inventory'
 import { getItemDef } from '../systems/itemRegistry'
 import { OpenShopAction } from '../systems/shop'
 import { Skills, type SkillsSave } from '../systems/skills'
-import { SmeltAction, type SmeltingSource, getSmeltingRecipe, validateSmelt } from '../systems/smithing'
+import {
+  type AnvilSource,
+  ForgeAction,
+  getSmeltingRecipe,
+  getSmithingRecipe,
+  SmeltAction,
+  type SmeltingSource,
+  validateForge,
+  validateSmelt,
+} from '../systems/smithing'
 import {
   GROUND_ITEM_DESPAWN_TICKS,
   type GroundItem,
@@ -432,6 +441,29 @@ export class Player {
     if (path === null) return false
     this.path = path
     this._action = new SmeltAction(recipe, source)
+    return true
+  }
+
+  /**
+   * Start forging metal bars into a finished item at an anvil. Validates up
+   * front (source valid, level, has enough bars), emitting `actionFailed`
+   * with the reason on failure, then queues a walk to a tile adjacent to the
+   * anvil and sets a ForgeAction (walk-then-act, like smelting; one product
+   * per FORGE_INTERVAL_TICKS). Returns false when validation fails or no
+   * adjacent tile is reachable (unreachable emits no event). Throws when no
+   * recipe exists for `productItemId`.
+   */
+  forge(productItemId: string, source: AnvilSource): boolean {
+    const recipe = getSmithingRecipe(productItemId)
+    const reason = validateForge(this, recipe, source)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    const path = findPathAdjacent(this.world, this.position, source.position)
+    if (path === null) return false
+    this.path = path
+    this._action = new ForgeAction(recipe, source)
     return true
   }
 

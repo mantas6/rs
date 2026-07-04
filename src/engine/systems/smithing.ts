@@ -1,5 +1,5 @@
-import { smeltingRecipes } from '../../content/recipes'
-import type { SmeltingRecipeDef } from '../../content/types'
+import { smeltingRecipes, smithingRecipes } from '../../content/recipes'
+import type { SmeltingRecipeDef, SmithingRecipeDef } from '../../content/types'
 import type { Game } from '../core/game'
 import type { Player, PlayerAction } from '../entities/player'
 import { chebyshev, type Vec2 } from '../world/vec2'
@@ -8,8 +8,14 @@ import { WorldObject } from '../world/worldObject'
 /** Why a smelt attempt failed to start or was interrupted. */
 export type SmeltingFailReason = 'level_too_low' | 'missing_ingredient' | 'invalid_source'
 
+/** Why a forge attempt failed to start or was interrupted (same set as smelting). */
+export type ForgeFailReason = SmeltingFailReason
+
 /** Something ore can be smelted on: a furnace world object. */
 export type SmeltingSource = WorldObject
+
+/** Something bars can be forged on: an anvil world object. */
+export type AnvilSource = WorldObject
 
 // Smithing events, added via declaration merging (see eventBus.ts).
 declare module '../core/eventBus' {
@@ -19,6 +25,8 @@ declare module '../core/eventBus' {
      * consumed but no bar or xp was produced (e.g. a failed iron smelt).
      */
     oreSmelted: { barItemId: string; success: boolean }
+    /** Emitted once per successful forge (the bars are already consumed). */
+    barForged: { productItemId: string }
   }
 }
 
@@ -120,5 +128,93 @@ export class SmeltAction implements PlayerAction {
     events.emit('oreSmelted', { barItemId: recipe.barItemId, success })
 
     return hasAllInputs(player, recipe)
+  }
+}
+
+/** Ticks per forge attempt (an anvil hammering animation, like OSRS). */
+export const FORGE_INTERVAL_TICKS = 5
+
+/**
+ * Forging recipe lookup for engine code. Content stays data-only; this is
+ * the engine's typed gateway into the record (mirrors getSmeltingRecipe).
+ */
+export function getSmithingRecipe(productItemId: string): SmithingRecipeDef {
+  const def = smithingRecipes[productItemId]
+  if (!def) throw new Error(`Unknown smithing recipe for product item id: ${productItemId}`)
+  return def
+}
+
+/** True when `source` is an anvil that bars can be forged on. */
+export function isValidAnvilSource(source: AnvilSource): boolean {
+  return source.def.anvilSource === true
+}
+
+/**
+ * Validate that `player` may forge `recipe` on `source` right now. Returns
+ * the failure reason, or null when forging may proceed. Uses the CURRENT
+ * (boostable) smithing level for the requirement, like OSRS, and requires
+ * enough bars in the inventory for one forge.
+ */
+export function validateForge(
+  player: Player,
+  recipe: SmithingRecipeDef,
+  source: AnvilSource,
+): ForgeFailReason | null {
+  if (!isValidAnvilSource(source)) return 'invalid_source'
+  if (player.skills.getCurrentLevel('smithing') < recipe.levelRequired) return 'level_too_low'
+  if (!player.inventory.has(recipe.barItemId, recipe.barsRequired)) return 'missing_ingredient'
+  return null
+}
+
+/**
+ * Tick-driven forging at an anvil.
+ *
+ * Started via `player.forge(productItemId, source)`, which validates, queues
+ * a walk to a tile adjacent to the anvil, and sets this action (walk-then-
+ * act, same as smelting). Every FORGE_INTERVAL_TICKS action ticks: consume
+ * the bars, grant the product plus xp. Unlike smelting, forging never fails.
+ * Continues until the bars run out, the source becomes invalid, or the
+ * player is interrupted.
+ */
+export class ForgeAction implements PlayerAction {
+  readonly kind = 'smithing'
+
+  private ticksUntilForge = FORGE_INTERVAL_TICKS
+
+  constructor(
+    private readonly recipe: SmithingRecipeDef,
+    private readonly source: AnvilSource,
+  ) {}
+
+  get targetPosition(): Readonly<Vec2> {
+    return this.source.position
+  }
+
+  onTick(game: Game): boolean {
+    const { player, events } = game
+    const recipe = this.recipe
+
+    // Player.update only ticks actions while idle, so if we are not adjacent
+    // here the walk was interrupted (stop()) — end silently. Anvils block
+    // movement, so the player is always exactly one tile away when forging.
+    if (chebyshev(player.position, this.source.position) > 1) return false
+
+    const reason = validateForge(player, recipe, this.source)
+    if (reason !== null) {
+      events.emit('actionFailed', { reason })
+      return false
+    }
+
+    this.ticksUntilForge--
+    if (this.ticksUntilForge > 0) return true
+    this.ticksUntilForge = FORGE_INTERVAL_TICKS
+
+    player.inventory.remove(recipe.barItemId, recipe.barsRequired)
+    player.inventory.add(recipe.productItemId)
+    player.skills.addXp('smithing', recipe.xp)
+    events.emit('barForged', { productItemId: recipe.productItemId })
+
+    // Continue only while enough bars remain for another forge.
+    return player.inventory.has(recipe.barItemId, recipe.barsRequired)
   }
 }

@@ -194,7 +194,7 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
     notes: [
       'The mine is in the south-east, across the river bridge.',
       'The Bronze pickaxe works from level 1; the Iron pickaxe needs Mining 5 to use.',
-      'Copper and Tin ore would become Bronze bars via Smithing, which is not yet available.',
+      'Smelt Copper and Tin ore into Bronze bars at the furnace via Smithing, then forge the bars into gear at the anvil.',
     ],
   },
   fishing: {
@@ -270,7 +270,7 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
   smithing: {
     skill: 'smithing',
     summary:
-      'Smelt ore into metal bars at a furnace. Bars are the raw material for forging equipment.',
+      'Smelt ore into metal bars at a furnace, then forge those bars into weapons and armour at an anvil.',
     trainable: true,
     steps: [
       {
@@ -280,16 +280,28 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
         itemIds: ['copper_ore', 'tin_ore', 'bronze_bar'],
       },
       {
+        level: 1,
+        action:
+          'Take Bronze bars to the anvil beside the furnace and hammer them into gear: a Bronze axe or sword (1 bar, 12.5 XP), later a Bronze scimitar or full helm (2 bars, 25 XP).',
+        itemIds: ['bronze_bar', 'bronze_axe', 'bronze_sword', 'bronze_scimitar', 'bronze_full_helm'],
+      },
+      {
         level: 15,
         action:
           'Smithing 15 lets you smelt Iron ore into Iron bars (12.5 XP), but iron only smelts successfully half the time and the ore is lost on a failed attempt.',
         itemIds: ['iron_ore', 'iron_bar'],
       },
+      {
+        level: 16,
+        action:
+          'Smithing 16 unlocks Bronze platelegs (3 bars, 37.5 XP) at the anvil, and Smithing 18 the Bronze platebody (5 bars, 62.5 XP).',
+        itemIds: ['bronze_bar', 'bronze_platelegs', 'bronze_platebody'],
+      },
     ],
     notes: [
-      'The furnace stands on the plains just west of the south-eastern mine, so you can smelt the ore you dig without a long trek.',
+      'The furnace and anvil stand on the plains just west of the south-eastern mine, so you can smelt the ore you dig and forge the bars without a long trek.',
       'A Bronze bar needs one Copper and one Tin ore; an Iron bar needs a single Iron ore.',
-      'Forging bars into weapons and armour at an anvil is not yet implemented.',
+      'Forging always succeeds: each attempt consumes the required bars and yields the item plus 12.5 Smithing XP per bar used.',
     ],
   },
   crafting: {
