@@ -3,6 +3,7 @@
 export * from './bank'
 export * from './combat'
 export * from './cooking'
+export * from './crafting'
 export * from './equipment'
 export * from './firemaking'
 export * from './gathering'

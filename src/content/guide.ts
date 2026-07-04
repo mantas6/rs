@@ -323,10 +323,36 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
   crafting: {
     skill: 'crafting',
     summary:
-      'Makes jewellery, armour and more from raw materials in classic OSRS. Not yet implemented in this version.',
-    trainable: false,
-    steps: [],
-    notes: ['Cows drop Cowhide, which Crafting would turn into leather once implemented.'],
+      'Turns cowhide into leather at a tannery, then sews the leather into armour with a needle and thread.',
+    trainable: true,
+    steps: [
+      {
+        level: 1,
+        action:
+          'Kill cows for Cowhide, tan it into Leather at the tannery, then use a Needle and Thread (both free from the general store) to sew Leather gloves (13.8 XP each).',
+        itemIds: ['cowhide', 'leather', 'needle', 'thread', 'leather_gloves'],
+      },
+      {
+        level: 7,
+        action: 'Crafting 7 lets you sew Leather boots (16.25 XP each).',
+        itemIds: ['leather', 'leather_boots'],
+      },
+      {
+        level: 14,
+        action: 'Crafting 14 unlocks the Leather body (25 XP each), a solid early chest piece.',
+        itemIds: ['leather', 'leather_body'],
+      },
+      {
+        level: 18,
+        action: 'Crafting 18 unlocks Leather chaps (27 XP each) for the legs slot.',
+        itemIds: ['leather', 'leather_chaps'],
+      },
+    ],
+    notes: [
+      'Cows in the fenced field east of the river drop Cowhide; a tannery stands on the plains just east of that field.',
+      'Tanning a hide into Leather is free and grants no XP — the Crafting XP comes from sewing the leather into equipment.',
+      'A Needle is reusable, but each item sewn consumes one Thread. Both are stocked free at the Lumbridge general store.',
+    ],
   },
   fletching: {
     skill: 'fletching',

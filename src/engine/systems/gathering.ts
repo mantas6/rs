@@ -6,6 +6,7 @@ import { chebyshev, type Vec2 } from '../world/vec2'
 import type { BankFailReason } from './bank'
 import type { CombatFailReason } from './combat'
 import type { CookingFailReason } from './cooking'
+import type { CraftingFailReason, TanningFailReason } from './crafting'
 import type { FiremakingFailReason } from './firemaking'
 import { getItemDef } from './itemRegistry'
 import type { ShopFailReason } from './shop'
@@ -26,6 +27,8 @@ export type ActionFailReason =
   | FiremakingFailReason
   | CookingFailReason
   | SmeltingFailReason
+  | TanningFailReason
+  | CraftingFailReason
   | BankFailReason
   | ShopFailReason
   | ConsumeFailReason

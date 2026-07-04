@@ -4,6 +4,15 @@ import type { Game } from '../core/game'
 import { OpenBankAction } from '../systems/bank'
 import { AttackAction, type AttackStyle } from '../systems/combat'
 import { CookAction, type CookingSource, getCookingRecipe, validateCook } from '../systems/cooking'
+import {
+  CraftAction,
+  getCraftingRecipe,
+  getTanningRecipe,
+  TanAction,
+  type TanningSource,
+  validateCraft,
+  validateTan,
+} from '../systems/crafting'
 import { Equipment, type EquipmentSave } from '../systems/equipment'
 import {
   type FireManager,
@@ -50,6 +59,7 @@ export type PlayerActionKind =
   | 'firemaking'
   | 'cooking'
   | 'smithing'
+  | 'crafting'
   | 'banking'
   | 'shopping'
   | 'combat'
@@ -464,6 +474,48 @@ export class Player {
     if (path === null) return false
     this.path = path
     this._action = new ForgeAction(recipe, source)
+    return true
+  }
+
+  /**
+   * Start tanning hides into leather at a tannery. Validates up front
+   * (source valid, has the hide), emitting `actionFailed` with the reason on
+   * failure, then queues a walk to a tile adjacent to the tannery and sets a
+   * TanAction (walk-then-act, like smelting; one leather per
+   * TAN_INTERVAL_TICKS). Returns false when validation fails or no adjacent
+   * tile is reachable (unreachable emits no event). Throws when no recipe
+   * exists for `hideItemId`.
+   */
+  tan(hideItemId: string, source: TanningSource): boolean {
+    const recipe = getTanningRecipe(hideItemId)
+    const reason = validateTan(this, recipe, source)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    const path = findPathAdjacent(this.world, this.position, source.position)
+    if (path === null) return false
+    this.path = path
+    this._action = new TanAction(recipe, source)
+    return true
+  }
+
+  /**
+   * Start sewing leather into equipment from the inventory (no walking — you
+   * sew where you stand, like lighting a fire). Validates up front (needle,
+   * level, enough leather and thread), emitting `actionFailed` with the
+   * reason on failure, then sets a CraftAction that produces one item per
+   * CRAFT_INTERVAL_TICKS until the materials run out. Throws when no recipe
+   * exists for `productItemId`.
+   */
+  craft(productItemId: string): boolean {
+    const recipe = getCraftingRecipe(productItemId)
+    const reason = validateCraft(this, recipe)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    this._action = new CraftAction(recipe)
     return true
   }
 

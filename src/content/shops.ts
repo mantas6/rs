@@ -18,6 +18,8 @@ export const shops: Record<string, ShopDef> = {
       { itemId: 'tinderbox', price: 0 },
       { itemId: 'bronze_sword', price: 0 },
       { itemId: 'wooden_shield', price: 0 },
+      { itemId: 'needle', price: 0 },
+      { itemId: 'thread', price: 0 },
     ],
   },
 }

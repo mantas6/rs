@@ -38,4 +38,11 @@ export const worldObjects: Record<string, WorldObjectDef> = {
     blocksMovement: true,
     anvilSource: true,
   },
+  tannery: {
+    id: 'tannery',
+    name: 'Tannery',
+    examine: 'Used to tan hides into leather.',
+    blocksMovement: true,
+    tanningSource: true,
+  },
 }

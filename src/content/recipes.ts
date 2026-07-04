@@ -1,6 +1,13 @@
 // Processing-skill definitions (cooking recipes, firemaking logs, smelting).
 // Data-only: plain objects, no logic.
-import type { CookingRecipeDef, FiremakingDef, SmeltingRecipeDef, SmithingRecipeDef } from './types'
+import type {
+  CookingRecipeDef,
+  CraftingRecipeDef,
+  FiremakingDef,
+  SmeltingRecipeDef,
+  SmithingRecipeDef,
+  TanningRecipeDef,
+} from './types'
 
 /**
  * Cooking recipes, keyed by raw item id. Burn chance interpolates linearly
@@ -140,5 +147,58 @@ export const smithingRecipes: Record<string, SmithingRecipeDef> = {
     barsRequired: 5,
     levelRequired: 18,
     xp: 62.5,
+  },
+}
+
+/**
+ * Tanning recipes (Crafting), keyed by the raw hide item id. Tanning turns a
+ * hide into leather at a tannery; it grants no xp and never fails, matching
+ * OSRS (the Crafting xp comes from sewing the leather afterwards). See
+ * crafting.ts.
+ */
+export const tanningRecipes: Record<string, TanningRecipeDef> = {
+  cowhide: {
+    hideItemId: 'cowhide',
+    leatherItemId: 'leather',
+  },
+}
+
+/**
+ * Crafting (sewing) recipes, keyed by the product item id. Leather is
+ * stitched into equipment with a needle (kept) and thread (consumed). Levels
+ * and xp follow OSRS soft-leather crafting. See crafting.ts.
+ */
+export const craftingRecipes: Record<string, CraftingRecipeDef> = {
+  leather_gloves: {
+    productItemId: 'leather_gloves',
+    leatherItemId: 'leather',
+    leatherRequired: 1,
+    threadRequired: 1,
+    levelRequired: 1,
+    xp: 13.8,
+  },
+  leather_boots: {
+    productItemId: 'leather_boots',
+    leatherItemId: 'leather',
+    leatherRequired: 1,
+    threadRequired: 1,
+    levelRequired: 7,
+    xp: 16.25,
+  },
+  leather_body: {
+    productItemId: 'leather_body',
+    leatherItemId: 'leather',
+    leatherRequired: 1,
+    threadRequired: 1,
+    levelRequired: 14,
+    xp: 25,
+  },
+  leather_chaps: {
+    productItemId: 'leather_chaps',
+    leatherItemId: 'leather',
+    leatherRequired: 1,
+    threadRequired: 1,
+    levelRequired: 18,
+    xp: 27,
   },
 }

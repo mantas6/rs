@@ -237,6 +237,40 @@ export interface SmithingRecipeDef {
 }
 
 /**
+ * Tanning recipe definition (Crafting skill): a raw hide turned into leather
+ * at a tannery (see crafting.ts). Tanning is a plain conversion — like OSRS
+ * it grants no Crafting xp and never fails; the xp comes from sewing the
+ * leather into equipment afterwards.
+ */
+export interface TanningRecipeDef {
+  /** Raw hide consumed per tan attempt. */
+  hideItemId: string
+  /** Leather produced on each tan. */
+  leatherItemId: string
+}
+
+/**
+ * Crafting (sewing) recipe definition: leather stitched into equipment with
+ * a needle and thread (see crafting.ts). A needle is required in the
+ * inventory (never consumed); `leatherRequired` leather and `threadRequired`
+ * thread are consumed per item. Sewing always succeeds.
+ */
+export interface CraftingRecipeDef {
+  /** Item produced per successful sew. */
+  productItemId: string
+  /** Leather consumed to sew the product. */
+  leatherItemId: string
+  /** Number of leather consumed per item. */
+  leatherRequired: number
+  /** Number of thread consumed per item. */
+  threadRequired: number
+  /** Minimum (boostable) crafting level to sew. */
+  levelRequired: number
+  /** Crafting xp per item sewn. */
+  xp: number
+}
+
+/**
  * Static world object definition (bank booths, cooking ranges, shop
  * counters). Placed in the world like resource nodes (see
  * engine/world/worldObject.ts); blocking objects affect walkability exactly
@@ -256,6 +290,8 @@ export interface WorldObjectDef {
   smeltingSource?: boolean
   /** True when bars can be forged into items on the object (player.forge). */
   anvilSource?: boolean
+  /** True when hides can be tanned into leather on the object (player.tan). */
+  tanningSource?: boolean
   /** Id of the shop the object opens (player.openShop), if any. */
   shop?: string
 }
