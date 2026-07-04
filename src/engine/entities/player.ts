@@ -96,6 +96,13 @@ export class Player {
   private _running = false
   private _action: PlayerAction | null = null
   private _attackStyle: AttackStyle = 'accurate'
+  /**
+   * Tick at which the player may next attack (0 = immediately). Kept on the
+   * player — not on the transient AttackAction — so re-issuing attack()
+   * (spam-clicking or switching targets) cannot reset the cooldown and swing
+   * faster than the weapon speed. See canAttack/markAttacked.
+   */
+  private _nextAttackTick = 0
   /** Remaining tiles to step through, in order. */
   private path: Vec2[] = []
 
@@ -304,6 +311,25 @@ export class Player {
     this.path = path
     this._action = new AttackAction(npc)
     return true
+  }
+
+  /**
+   * True when the player's melee attack cooldown has elapsed and they may
+   * swing this tick. Engine-internal (used by AttackAction). Because the
+   * cooldown lives on the player, re-creating the AttackAction — by
+   * spam-clicking or switching targets — cannot bypass it.
+   */
+  canAttack(tick: number): boolean {
+    return tick >= this._nextAttackTick
+  }
+
+  /**
+   * Record a melee swing on `tick`, starting the weapon-speed cooldown
+   * before the next attack is allowed. Engine-internal (AttackAction calls
+   * this after performing an attack).
+   */
+  markAttacked(tick: number): void {
+    this._nextAttackTick = tick + this.equipment.weaponSpeed()
   }
 
   /**

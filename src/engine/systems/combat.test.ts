@@ -128,6 +128,39 @@ describe('player attacks an npc', () => {
     expect(npc.currentHp).toBe(npcs.chicken.combat.hitpoints)
   })
 
+  it('spam-clicking a target cannot attack faster than the weapon speed', () => {
+    // Cow adjacent to the spawn (2, 2): the first swing lands immediately
+    // (no walking) and the passive cow, once hit, retaliates and stays put.
+    // Unarmed max hit is 1, so across 7 swings the 8-hp cow cannot die and
+    // the fight keeps running for the whole spam window.
+    const game = makeGame([{ defId: 'cow', x: 3, y: 2 }])
+    const cow = game.npcs[0]
+    const speed = game.player.equipment.weaponSpeed() // unarmed = 4 ticks
+
+    const attackTicks: number[] = []
+    game.events.on('damageDealt', (e) => {
+      // damageDealt fires on every attack (incl. misses), so counting the
+      // player-sourced events counts ATTACKS regardless of the damage roll.
+      if (e.source === 'player') attackTicks.push(game.tickCount)
+    })
+
+    const TICKS = 25
+    expect(game.player.attack(cow)).toBe(true)
+    for (let i = 0; i < TICKS; i++) {
+      game.tick()
+      // Re-issue the command every single tick, as fast as a UI possibly
+      // could — this recreates the AttackAction each time.
+      game.player.attack(cow)
+    }
+
+    // Attacks land only on the weapon-speed cadence (ticks 1, 5, 9, ...),
+    // never once per tick — the exploit (a reset cooldown per click) is gone.
+    expect(cow.alive).toBe(true)
+    expect(attackTicks).toEqual([1, 5, 9, 13, 17, 21, 25])
+    expect(attackTicks.length).toBe(Math.floor((TICKS - 1) / speed) + 1)
+    expect(attackTicks.length).toBeLessThan(TICKS) // not one hit per tick
+  })
+
   it('attacking a dead npc fails with target_dead', () => {
     const game = makeGame([CHICKEN])
     const npc = game.npcs[0]

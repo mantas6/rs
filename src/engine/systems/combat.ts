@@ -237,14 +237,13 @@ export function handlePlayerDeath(game: Game): void {
  * the target has drifted away.
  *
  * Attacks land every `equipment.weaponSpeed()` ticks (the first as soon as
- * the player is adjacent). The action ends when the NPC dies or becomes
- * unreachable.
+ * the player is adjacent). The attack cooldown is tracked on the Player
+ * (canAttack/markAttacked), NOT on this action, so re-issuing attack() —
+ * spam-clicking a target or switching targets — cannot reset it and swing
+ * early. The action ends when the NPC dies or becomes unreachable.
  */
 export class AttackAction implements PlayerAction {
   readonly kind = 'combat'
-
-  /** Tick at which the player may next attack (0 = immediately). */
-  private nextAttackTick = 0
 
   constructor(private readonly npc: Npc) {}
 
@@ -260,8 +259,10 @@ export class AttackAction implements PlayerAction {
       // Re-path to the NPC's new position; end when unreachable.
       return player.chase(this.npc.position)
     }
-    if (game.tickCount < this.nextAttackTick) return true
-    this.nextAttackTick = game.tickCount + player.equipment.weaponSpeed()
+    // Cooldown lives on the player: re-creating this action (spam-clicking
+    // or switching targets) can't bypass it.
+    if (!player.canAttack(game.tickCount)) return true
+    player.markAttacked(game.tickCount)
     performPlayerAttack(game, this.npc)
     return this.npc.alive
   }
