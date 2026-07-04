@@ -9,15 +9,15 @@
 // knows whole tiles).
 //
 // Mesh construction lives in src/ui/sprites/ (one file per visual object);
-// this class only orchestrates: scene setup, camera, lighting, picking,
-// tick interpolation, and calling the sprite factories/updaters.
+// the separable render concerns (orbit camera, tick interpolation, entity
+// pose selection, hitsplats, tile info) live in src/ui/render/. This class
+// only orchestrates: scene setup, lighting, picking and per-frame sync,
+// wiring those modules together.
 import * as THREE from 'three'
-import type { NpcDef } from '../content/types'
-import type { Fire, Game, GroundItem, Npc, PlayerActionKind, ResourceNode } from '../engine'
+import type { Fire, Game, GroundItem, Npc, ResourceNode } from '../engine'
 import type { FarmPatch } from '../engine'
-import { getFarmingCrop, getItemDef, TICK_MS } from '../engine'
+import { getFarmingCrop } from '../engine'
 import {
-  approachAngle,
   createAnvilMesh,
   createBankBoothMesh,
   createBarCounterMesh,
@@ -38,7 +38,6 @@ import {
   createShopCounterMesh,
   createTreeMesh,
   decay01,
-  disposeHitsplat,
   updateFarmPatchGrowth,
   type BuildingsView,
   type FarmPatchView,
@@ -49,149 +48,37 @@ import {
   updateFishingSpotPulse,
   updateGroundItemSpin,
   updateHealthBar,
-  updateHitsplat,
   updateNpcAnimation,
   updatePlayerAnimation,
   updatePlayerEquipment,
   updateWaterRipple,
-  yawToward,
-  type HitsplatView,
+  approachAngle,
   type SceneryView,
   type WaterAnimation,
-  type NpcPose,
   type NpcView,
-  type PlayerPose,
   type PlayerView,
 } from './sprites'
+import { CameraController } from './render/cameraController'
+import {
+  ATTACK_SWING_MS,
+  DEATH_FALL_MS,
+  DEATH_TOTAL_MS,
+  FLINCH_MS,
+  NPC_HITSPLAT_OFFSET,
+  PLAYER_HITSPLAT_HEIGHT,
+  TURN_SPEED,
+  VIEW_H,
+  VIEW_W,
+  type Hover,
+} from './render/constants'
+import { selectNpcPose, selectPlayerPose } from './render/entityAnimation'
+import { HitsplatManager } from './render/hitsplats'
+import { MoverInterpolator } from './render/interpolation'
 
-/**
- * Fallback canvas viewport size in pixels. The live canvas is no longer
- * locked to this — GameRenderer observes its container and resizes to fill
- * it (see `resize`) — but these are kept as the initial/aspect fallback and
- * for any code that still wants a nominal size.
- */
-export const VIEW_W = 720
-export const VIEW_H = 480
-
-/** Hovered tile in map coordinates (null when the mouse is outside). */
-export interface Hover {
-  x: number
-  y: number
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max)
-}
-
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t
-}
-
-/** Centroid + finger spread of a two-finger touch, for orbit/pinch. */
-function touchInfo(e: TouchEvent): { x: number; y: number; dist: number } {
-  const a = e.touches[0]
-  const b = e.touches[1]
-  return {
-    x: (a.clientX + b.clientX) / 2,
-    y: (a.clientY + b.clientY) / 2,
-    dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
-  }
-}
-
-/**
- * Approximate OSRS combat level for an NPC def (melee-only stats; ranged,
- * magic and prayer terms are omitted because NPCs have none here).
- */
-export function npcCombatLevel(def: NpcDef): number {
-  const c = def.combat
-  const base = 0.25 * (c.defenceLevel + c.hitpoints)
-  const melee = 0.325 * (c.attackLevel + c.strengthLevel)
-  return Math.max(1, Math.floor(base + melee))
-}
-
-/** One-line description of what sits on a tile (hover tooltip), or null. */
-export function describeTile(game: Game, x: number, y: number): string | null {
-  const npc = game.npcs.find((n) => n.alive && n.x === x && n.y === y)
-  if (npc) return `${npc.def.name} (level ${npcCombatLevel(npc.def)})`
-  const node = game.world.nodeAt(x, y)
-  if (node) return node.depleted ? `${node.def.name} (depleted)` : node.def.name
-  const patch = game.world.patchAt(x, y)
-  if (patch) {
-    if (!patch.isPlanted) return `${patch.def.name} (empty)`
-    return patch.isGrown() ? `${patch.def.name} (ready)` : `${patch.def.name} (growing)`
-  }
-  const object = game.world.objectAt(x, y)
-  if (object) return object.def.name
-  const item = game.groundItems.itemsAt(x, y)[0]
-  if (item) return `Take ${getItemDef(item.itemId).name}`
-  if (game.fires.fireAt(x, y)) return 'Fire'
-  return null
-}
-
-// ---- Camera constants (OSRS-style orbit around the player) ----
-
-const CAM_MIN_DIST = 5
-const CAM_MAX_DIST = 30
-const CAM_MIN_PITCH = 0.35
-const CAM_MAX_PITCH = 1.35
-/** Arrow-key rotate speed, radians per second. */
-const KEY_YAW_SPEED = 2.2
-const KEY_PITCH_SPEED = 1.4
-
-// ---- Animation constants shared by the player and NPCs (purely visual;
-// see sprites/playerMesh.ts and sprites/npcMesh.ts) ----
-
-/** How long the red flash + flinch lasts after taking damage. */
-const FLINCH_MS = 350
-/** Duration of one attack-swing overlay after an attacker deals damage. */
-const ATTACK_SWING_MS = 400
-/** Fall-over time and total on-the-ground (corpse) time after dying. */
-const DEATH_FALL_MS = 500
-const DEATH_TOTAL_MS = 1100
-/** Facing turn speed, radians per second. */
-const TURN_SPEED = 12
-/** World-space height a hitsplat floats at above the player's head. */
-const PLAYER_HITSPLAT_HEIGHT = 1.5
-/** Extra height above an NPC's health bar to float its hitsplats. */
-const NPC_HITSPLAT_OFFSET = 0.18
-
-/** Pose used for each engine action kind. */
-const ACTION_POSE: Record<PlayerActionKind, PlayerPose> = {
-  woodcutting: 'chop',
-  mining: 'chop',
-  fishing: 'fish',
-  firemaking: 'firemaking',
-  cooking: 'cook',
-  smithing: 'cook', // stand over the furnace, same stance as cooking
-  crafting: 'cook', // tanning at the tannery / sewing leather
-  fletching: 'cook', // carving logs with a knife, same seated stance
-  farming: 'cook', // kneeling over the patch, same crouched stance
-  banking: 'bank',
-  shopping: 'bank',
-  pickup: 'bank',
-  combat: 'combat',
-}
-
-/** Tile-position pair used to interpolate one entity between ticks. */
-interface MoverLerp {
-  px: number
-  py: number
-  cx: number
-  cy: number
-}
-
-/**
- * A live combat hitsplat plus what it follows. `npc` is the damaged NPC (its
- * interpolated position is tracked while alive; the splat freezes at the last
- * spot once it dies/despawns), or null when the splat sits above the player.
- * `x`/`z` cache the last world position so a frozen splat keeps rising in place.
- */
-interface ActiveHitsplat {
-  view: HitsplatView
-  npc: Npc | null
-  x: number
-  z: number
-}
+// Re-export the renderer's public surface from its original module path so
+// existing imports (GameCanvas.tsx and others) keep resolving unchanged.
+export { VIEW_H, VIEW_W, type Hover } from './render/constants'
+export { describeTile, npcCombatLevel } from './render/tileInfo'
 
 interface NodeView {
   group: THREE.Group
@@ -210,7 +97,7 @@ export class GameRenderer {
   private readonly canvas: HTMLCanvasElement
   private readonly renderer: THREE.WebGLRenderer
   private readonly scene = new THREE.Scene()
-  private readonly camera: THREE.PerspectiveCamera
+  private readonly cameraController: CameraController
   private readonly raycaster = new THREE.Raycaster()
 
   // Shared sprite resources, tracked so dispose() can free GPU memory.
@@ -251,14 +138,11 @@ export class GameRenderer {
   private readonly itemViews = new Map<GroundItem, THREE.Object3D>()
   private hoverMesh!: THREE.LineLoop
 
-  // Floating damage numbers. Held in a plain array (never pickable), parented
-  // to their own scene group so they never intercept tile picks.
-  private readonly hitsplats: ActiveHitsplat[] = []
-  private readonly hitsplatRoot = new THREE.Group()
+  // Floating damage numbers, owned by their own manager (never pickable).
+  private readonly hitsplats = new HitsplatManager()
 
   // Tick interpolation state.
-  private readonly movers = new Map<object, MoverLerp>()
-  private lastTickAt = performance.now()
+  private readonly interp = new MoverInterpolator()
   private readonly unsubscribeTick: () => void
 
   // Player animation state (purely visual, driven by engine events/state).
@@ -268,85 +152,12 @@ export class GameRenderer {
   private diedAt = -Infinity
   private readonly unsubscribeAnimEvents: Array<() => void> = []
 
-  // Orbit camera state.
-  private camYaw = Math.PI
-  private camPitch = 0.9
-  private camDist = 13
-  private readonly pressedKeys = new Set<string>()
-  private middleDrag: { x: number; y: number } | null = null
-  // Two-finger touch orbit/pinch state (centroid + finger spread).
-  private touchGesture: { x: number; y: number; dist: number } | null = null
-
   // Keeps the renderer/camera matched to the canvas container's box.
   private readonly resizeObserver: ResizeObserver
 
   private rafId = 0
   private lastFrameAt = performance.now()
   private disposed = false
-
-  // Bound listeners (kept so dispose() can remove them).
-  private readonly onWheel = (e: WheelEvent): void => {
-    e.preventDefault()
-    this.camDist = clamp(this.camDist * (1 + e.deltaY * 0.001), CAM_MIN_DIST, CAM_MAX_DIST)
-  }
-  private readonly onMouseDown = (e: MouseEvent): void => {
-    if (e.button !== 1) return
-    e.preventDefault()
-    this.middleDrag = { x: e.clientX, y: e.clientY }
-  }
-  private readonly onMouseMove = (e: MouseEvent): void => {
-    if (!this.middleDrag) return
-    this.camYaw -= (e.clientX - this.middleDrag.x) * 0.008
-    this.camPitch = clamp(
-      this.camPitch + (e.clientY - this.middleDrag.y) * 0.005,
-      CAM_MIN_PITCH,
-      CAM_MAX_PITCH,
-    )
-    this.middleDrag = { x: e.clientX, y: e.clientY }
-  }
-  private readonly onMouseUp = (e: MouseEvent): void => {
-    if (e.button === 1) this.middleDrag = null
-  }
-  private readonly onKeyDown = (e: KeyboardEvent): void => {
-    if (!e.key.startsWith('Arrow')) return
-    const target = e.target as HTMLElement | null
-    if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
-    e.preventDefault()
-    this.pressedKeys.add(e.key)
-  }
-  private readonly onKeyUp = (e: KeyboardEvent): void => {
-    this.pressedKeys.delete(e.key)
-  }
-
-  // Touch camera fallback: two fingers orbit (centroid drag) and pinch to
-  // zoom. Single-finger taps are left to GameCanvas so tap-to-interact works.
-  private readonly onTouchStart = (e: TouchEvent): void => {
-    if (e.touches.length !== 2) return
-    e.preventDefault()
-    this.touchGesture = touchInfo(e)
-  }
-  private readonly onTouchMove = (e: TouchEvent): void => {
-    if (e.touches.length !== 2 || !this.touchGesture) return
-    e.preventDefault()
-    const info = touchInfo(e)
-    this.camYaw -= (info.x - this.touchGesture.x) * 0.008
-    this.camPitch = clamp(
-      this.camPitch + (info.y - this.touchGesture.y) * 0.005,
-      CAM_MIN_PITCH,
-      CAM_MAX_PITCH,
-    )
-    if (this.touchGesture.dist > 0 && info.dist > 0) {
-      this.camDist = clamp(
-        this.camDist * (this.touchGesture.dist / info.dist),
-        CAM_MIN_DIST,
-        CAM_MAX_DIST,
-      )
-    }
-    this.touchGesture = info
-  }
-  private readonly onTouchEnd = (e: TouchEvent): void => {
-    if (e.touches.length < 2) this.touchGesture = null
-  }
 
   constructor(canvas: HTMLCanvasElement, game: Game) {
     this.canvas = canvas
@@ -371,7 +182,7 @@ export class GameRenderer {
     this.scene.background = new THREE.Color(0x8fc9f2)
     this.scene.fog = new THREE.Fog(0xc6e6ff, 55, 130)
 
-    this.camera = new THREE.PerspectiveCamera(50, initialW / initialH, 0.1, 200)
+    this.cameraController = new CameraController(canvas, initialW / initialH)
 
     // Sky/ground hemisphere fill keeps shadowed sides bright and colourful
     // (cool sky above, warm earth bounce below); the warm directional sun
@@ -421,22 +232,13 @@ export class GameRenderer {
     this.hoverMesh = createHoverOutline(this.resources)
     this.scene.add(this.hoverMesh)
     this.scene.add(this.dynamicRoot)
-    this.scene.add(this.hitsplatRoot)
+    this.scene.add(this.hitsplats.root)
 
     // Snapshot mover positions once per engine tick for interpolation.
     this.unsubscribeTick = game.events.on('tick', () => this.snapshotMovers())
     this.snapshotMovers()
 
-    canvas.addEventListener('wheel', this.onWheel, { passive: false })
-    canvas.addEventListener('mousedown', this.onMouseDown)
-    canvas.addEventListener('touchstart', this.onTouchStart, { passive: false })
-    canvas.addEventListener('touchmove', this.onTouchMove, { passive: false })
-    canvas.addEventListener('touchend', this.onTouchEnd)
-    canvas.addEventListener('touchcancel', this.onTouchEnd)
-    window.addEventListener('mousemove', this.onMouseMove)
-    window.addEventListener('mouseup', this.onMouseUp)
-    window.addEventListener('keydown', this.onKeyDown)
-    window.addEventListener('keyup', this.onKeyUp)
+    this.cameraController.attach()
 
     // Keep the drawing buffer + camera aspect matched to the container.
     this.resizeObserver = new ResizeObserver((entries) => {
@@ -551,36 +353,7 @@ export class GameRenderer {
 
   /** Shift current → previous for every mover; runs once per engine tick. */
   private snapshotMovers(): void {
-    this.lastTickAt = performance.now()
-    const track = (key: object, x: number, y: number): void => {
-      const state = this.movers.get(key)
-      if (!state) {
-        this.movers.set(key, { px: x, py: y, cx: x, cy: y })
-        return
-      }
-      state.px = state.cx
-      state.py = state.cy
-      state.cx = x
-      state.cy = y
-      // Teleports (death respawn etc.) snap instead of gliding across the map.
-      if (Math.max(Math.abs(state.cx - state.px), Math.abs(state.cy - state.py)) > 3) {
-        state.px = state.cx
-        state.py = state.cy
-      }
-    }
-    track(this.game.player, this.game.player.x, this.game.player.y)
-    for (const npc of this.game.npcs) {
-      if (npc.alive) track(npc, npc.x, npc.y)
-      else this.movers.delete(npc) // Snap into place on respawn.
-    }
-  }
-
-  /** Interpolated tile-space position of a mover at this instant. */
-  private moverPos(key: object, x: number, y: number): { x: number; y: number } {
-    const state = this.movers.get(key)
-    if (!state) return { x, y }
-    const t = clamp((performance.now() - this.lastTickAt) / TICK_MS, 0, 1)
-    return { x: lerp(state.px, state.cx, t), y: lerp(state.py, state.cy, t) }
+    this.interp.snapshotMovers(this.game.player, this.game.npcs)
   }
 
   // ---- Per-frame sync + render ----
@@ -592,7 +365,7 @@ export class GameRenderer {
 
     this.syncScene(now, dt)
     this.updateCamera(dt)
-    this.renderer.render(this.scene, this.camera)
+    this.renderer.render(this.scene, this.cameraController.camera)
   }
 
   /** Force an immediate state sync + draw (e.g. after a UI command). */
@@ -609,8 +382,7 @@ export class GameRenderer {
     if (this.disposed || width === 0 || height === 0) return
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setSize(width, height, false)
-    this.camera.aspect = width / height
-    this.camera.updateProjectionMatrix()
+    this.cameraController.setAspect(width, height)
     this.renderFrame()
   }
 
@@ -634,7 +406,7 @@ export class GameRenderer {
     }
 
     // Player.
-    const p = this.moverPos(game.player, game.player.x, game.player.y)
+    const p = this.interp.moverPos(game.player, game.player.x, game.player.y)
     this.playerView.group.position.set(p.x + 0.5, 0, p.y + 0.5)
     this.playerView.group.userData.tile = { x: game.player.x, y: game.player.y }
     this.animatePlayer(now, dt)
@@ -646,11 +418,16 @@ export class GameRenderer {
       const dying = !npc.alive && now - view.diedAt < DEATH_TOTAL_MS
       view.group.visible = npc.alive || dying
       if (!view.group.visible) continue
-      const pos = this.moverPos(npc, npc.x, npc.y)
+      const pos = this.interp.moverPos(npc, npc.x, npc.y)
       view.group.position.set(pos.x + 0.5, 0, pos.y + 0.5)
       view.group.userData.tile = { x: npc.x, y: npc.y }
       if (npc.alive) {
-        updateHealthBar(view, npc.currentHp, npc.def.combat.hitpoints, this.camera.quaternion)
+        updateHealthBar(
+          view,
+          npc.currentHp,
+          npc.def.combat.hitpoints,
+          this.cameraController.camera.quaternion,
+        )
       } else {
         view.hpBar.visible = false
       }
@@ -710,17 +487,11 @@ export class GameRenderer {
     this.updateHitsplats(now)
   }
 
-  /** World XZ (tile center) of an entity's current interpolated position. */
-  private entityWorldPos(key: object, x: number, y: number): { x: number; z: number } {
-    const pos = this.moverPos(key, x, y)
-    return { x: pos.x + 0.5, z: pos.y + 0.5 }
-  }
-
   /**
    * Spawn a floating damage number over an entity: `npc` for a player hit,
    * or null to place it above the player (NPC hit). Damage 0 renders the blue
    * OSRS "miss" splat. It anchors just above the NPC's health bar (or a fixed
-   * height over the player) and is tracked in `hitsplats` until it fades.
+   * height over the player) and is tracked until it fades.
    */
   private spawnHitsplat(npc: Npc | null, damage: number, at: number): void {
     const baseHeight = npc
@@ -728,65 +499,44 @@ export class GameRenderer {
       : PLAYER_HITSPLAT_HEIGHT
     const view = createHitsplat(damage, baseHeight, at)
     const start = npc
-      ? this.entityWorldPos(npc, npc.x, npc.y)
-      : this.entityWorldPos(this.game.player, this.game.player.x, this.game.player.y)
-    this.hitsplatRoot.add(view.sprite)
-    this.hitsplats.push({ view, npc, x: start.x, z: start.z })
+      ? this.interp.entityWorldPos(npc, npc.x, npc.y)
+      : this.interp.entityWorldPos(this.game.player, this.game.player.x, this.game.player.y)
+    this.hitsplats.add(view, npc, start.x, start.z)
   }
 
-  /**
-   * Follow, rise/fade and reap the live hitsplats. Player splats track the
-   * player; NPC splats track the NPC while alive and freeze at their last
-   * spot once it dies/despawns (so they don't jump to a respawn tile).
-   */
+  /** Follow, rise/fade and reap the live hitsplats. */
   private updateHitsplats(now: number): void {
-    for (let i = this.hitsplats.length - 1; i >= 0; i--) {
-      const h = this.hitsplats[i]
-      if (!h.npc) {
-        const p = this.entityWorldPos(this.game.player, this.game.player.x, this.game.player.y)
-        h.x = p.x
-        h.z = p.z
-      } else if (h.npc.alive) {
-        const p = this.entityWorldPos(h.npc, h.npc.x, h.npc.y)
-        h.x = p.x
-        h.z = p.z
-      }
-      if (!updateHitsplat(h.view, now, h.x, h.z)) {
-        this.hitsplatRoot.remove(h.view.sprite)
-        disposeHitsplat(h.view)
-        this.hitsplats.splice(i, 1)
-      }
-    }
+    this.hitsplats.update(
+      now,
+      () =>
+        this.interp.entityWorldPos(this.game.player, this.game.player.x, this.game.player.y),
+      (npc) => this.interp.entityWorldPos(npc, npc.x, npc.y),
+    )
   }
 
   /**
    * Pick the player's pose + facing from engine state and drive the
-   * skeleton. Priority: death fall > walking (tick interpolation still in
-   * progress) > current action (via its `kind` descriptor) > open bank >
-   * idle. Facing turns toward the movement direction or the action's
-   * target tile; flinch/attack-swing overlays come from engine events.
+   * skeleton (see selectPlayerPose). Facing turns toward the movement
+   * direction or the action's target tile; flinch/attack-swing overlays come
+   * from engine events.
    */
   private animatePlayer(now: number, dt: number): void {
     const player = this.game.player
-    const state = this.movers.get(player)
-    const t = clamp((now - this.lastTickAt) / TICK_MS, 0, 1)
+    const state = this.interp.mover(player)
+    const t = this.interp.tickPhase(now)
     const walking = !!state && t < 1 && (state.px !== state.cx || state.py !== state.cy)
     const dying = now - this.diedAt < DEATH_TOTAL_MS
 
-    let pose: PlayerPose = 'idle'
-    let faceTarget: number | null = null
-    if (dying) {
-      pose = 'death'
-    } else if (walking && state) {
-      pose = 'walk'
-      faceTarget = yawToward({ x: state.px, y: state.py }, { x: state.cx, y: state.cy })
-    } else if (player.action?.kind) {
-      pose = ACTION_POSE[player.action.kind]
-      const target = player.action.targetPosition
-      if (target) faceTarget = yawToward(player.position, target)
-    } else if (this.game.bank.isOpen || this.game.shop.isOpen) {
-      pose = 'bank'
-    }
+    const { pose, faceTarget } = selectPlayerPose({
+      dying,
+      walking,
+      state,
+      actionKind: player.action?.kind,
+      actionTarget: player.action?.targetPosition,
+      playerPosition: player.position,
+      bankOpen: this.game.bank.isOpen,
+      shopOpen: this.game.shop.isOpen,
+    })
     if (faceTarget !== null) {
       this.playerYaw = approachAngle(this.playerYaw, faceTarget, TURN_SPEED * dt)
     }
@@ -828,28 +578,23 @@ export class GameRenderer {
   }
 
   /**
-   * Pick an NPC's pose + facing from engine state and drive its parts.
-   * Priority: death fall > walking (tick interpolation in progress, facing
-   * the movement direction) > combat stance facing its target > idle.
-   * Flinch/attack-lunge overlays come from the damageDealt events.
+   * Pick an NPC's pose + facing from engine state and drive its parts (see
+   * selectNpcPose). Flinch/attack-lunge overlays come from the damageDealt
+   * events.
    */
   private animateNpc(npc: Npc, view: NpcView, now: number, dt: number, dying: boolean): void {
-    const state = this.movers.get(npc)
-    const t = clamp((now - this.lastTickAt) / TICK_MS, 0, 1)
+    const state = this.interp.mover(npc)
+    const t = this.interp.tickPhase(now)
     const walking =
       npc.alive && !!state && t < 1 && (state.px !== state.cx || state.py !== state.cy)
 
-    let pose: NpcPose = 'idle'
-    let faceTarget: number | null = null
-    if (dying) {
-      pose = 'death'
-    } else if (walking && state) {
-      pose = 'walk'
-      faceTarget = yawToward({ x: state.px, y: state.py }, { x: state.cx, y: state.cy })
-    } else if (npc.target) {
-      pose = 'combat'
-      faceTarget = yawToward(npc.position, npc.target.position)
-    }
+    const { pose, faceTarget } = selectNpcPose({
+      dying,
+      walking,
+      state,
+      targetPosition: npc.target?.position ?? null,
+      npcPosition: npc.position,
+    })
     if (faceTarget !== null) {
       view.yaw = approachAngle(view.yaw, faceTarget, TURN_SPEED * dt)
     }
@@ -866,23 +611,8 @@ export class GameRenderer {
   }
 
   private updateCamera(dt: number): void {
-    if (this.pressedKeys.has('ArrowLeft')) this.camYaw += KEY_YAW_SPEED * dt
-    if (this.pressedKeys.has('ArrowRight')) this.camYaw -= KEY_YAW_SPEED * dt
-    if (this.pressedKeys.has('ArrowUp')) this.camPitch += KEY_PITCH_SPEED * dt
-    if (this.pressedKeys.has('ArrowDown')) this.camPitch -= KEY_PITCH_SPEED * dt
-    this.camPitch = clamp(this.camPitch, CAM_MIN_PITCH, CAM_MAX_PITCH)
-
-    // The interpolated player position is already smooth; track it directly.
-    const p = this.moverPos(this.game.player, this.game.player.x, this.game.player.y)
-    const tx = p.x + 0.5
-    const tz = p.y + 0.5
-    const horizontal = this.camDist * Math.cos(this.camPitch)
-    this.camera.position.set(
-      tx + horizontal * Math.sin(this.camYaw),
-      this.camDist * Math.sin(this.camPitch),
-      tz + horizontal * Math.cos(this.camYaw),
-    )
-    this.camera.lookAt(tx, 0.5, tz)
+    const p = this.interp.moverPos(this.game.player, this.game.player.x, this.game.player.y)
+    this.cameraController.update(dt, p.x, p.y)
   }
 
   // ---- Picking + hover ----
@@ -898,7 +628,7 @@ export class GameRenderer {
       ((clientX - rect.left) / rect.width) * 2 - 1,
       -((clientY - rect.top) / rect.height) * 2 + 1,
     )
-    this.raycaster.setFromCamera(ndc, this.camera)
+    this.raycaster.setFromCamera(ndc, this.cameraController.camera)
     const hits = this.raycaster.intersectObjects(
       [this.dynamicRoot, this.groundMesh, this.floorMesh, this.waterMesh, this.stoneMesh],
       true,
@@ -946,21 +676,8 @@ export class GameRenderer {
     this.unsubscribeTick()
     for (const unsubscribe of this.unsubscribeAnimEvents) unsubscribe()
     this.resizeObserver.disconnect()
-    this.canvas.removeEventListener('wheel', this.onWheel)
-    this.canvas.removeEventListener('mousedown', this.onMouseDown)
-    this.canvas.removeEventListener('touchstart', this.onTouchStart)
-    this.canvas.removeEventListener('touchmove', this.onTouchMove)
-    this.canvas.removeEventListener('touchend', this.onTouchEnd)
-    this.canvas.removeEventListener('touchcancel', this.onTouchEnd)
-    window.removeEventListener('mousemove', this.onMouseMove)
-    window.removeEventListener('mouseup', this.onMouseUp)
-    window.removeEventListener('keydown', this.onKeyDown)
-    window.removeEventListener('keyup', this.onKeyUp)
-    for (const h of this.hitsplats) {
-      this.hitsplatRoot.remove(h.view.sprite)
-      disposeHitsplat(h.view)
-    }
-    this.hitsplats.length = 0
+    this.cameraController.detach()
+    this.hitsplats.dispose()
     this.resources.dispose()
     this.groundMesh.dispose()
     this.waterMesh.dispose()

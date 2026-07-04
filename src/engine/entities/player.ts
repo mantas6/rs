@@ -13,7 +13,7 @@ import {
   validateCraft,
   validateTan,
 } from '../systems/crafting'
-import { Equipment, type EquipmentSave } from '../systems/equipment'
+import { Equipment } from '../systems/equipment'
 import { HarvestAction, PlantAction, validateHarvest, validatePlant } from '../systems/farming'
 import {
   type FireManager,
@@ -23,11 +23,11 @@ import {
 } from '../systems/firemaking'
 import { FletchAction, getFletchingRecipe, validateFletch } from '../systems/fletching'
 import { GatherAction, validateGather } from '../systems/gathering'
-import { Inventory, type InventorySave } from '../systems/inventory'
+import { Inventory } from '../systems/inventory'
 import { getItemDef } from '../systems/itemRegistry'
 import { Prayers } from '../systems/prayer'
 import { OpenShopAction } from '../systems/shop'
-import { Skills, type SkillsSave } from '../systems/skills'
+import { Skills } from '../systems/skills'
 import {
   type AnvilSource,
   ForgeAction,
@@ -51,75 +51,13 @@ import type { World } from '../world/tileMap'
 import type { Vec2 } from '../world/vec2'
 import type { WorldObject } from '../world/worldObject'
 import type { Npc } from './npc'
+// Player-related type declarations and consumable event augmentations live in
+// playerTypes.ts (a cohesive, logic-free module). They are re-exported here so
+// existing `import ... from '../entities/player'` sites and the engine barrel
+// keep working unchanged.
+import type { PlayerAction, PlayerSave } from './playerTypes'
 
-/**
- * What an action visually "is", so the UI can pick an animation. Gathering
- * actions report their skill; everything else has a dedicated kind.
- */
-export type PlayerActionKind =
-  | 'woodcutting'
-  | 'mining'
-  | 'fishing'
-  | 'firemaking'
-  | 'cooking'
-  | 'smithing'
-  | 'crafting'
-  | 'fletching'
-  | 'farming'
-  | 'banking'
-  | 'shopping'
-  | 'combat'
-  | 'pickup'
-
-/**
- * A tick-driven activity the player is performing (chopping, fighting, ...).
- * Set via `player.setAction(...)`; ticked only while the player is not
- * moving. Starting to walk cancels the current action.
- */
-export interface PlayerAction {
-  /** Called once per tick while active. Return false when finished. */
-  onTick(game: Game): boolean
-  /** Read-only descriptor for the UI (animation picking). */
-  readonly kind?: PlayerActionKind
-  /** Tile the action is aimed at (facing target for the UI), if any. */
-  readonly targetPosition?: Readonly<Vec2> | null
-}
-
-/** Why consuming an inventory item (eating/burying/drinking) failed. */
-export type ConsumeFailReason = 'not_food' | 'not_buryable' | 'not_drinkable'
-
-/**
- * JSON-safe snapshot of the player (see Player.serialize). The movement
- * queue and in-progress action are NOT saved: on load the player is idle
- * at the saved tile.
- */
-export interface PlayerSave {
-  x: number
-  y: number
-  running: boolean
-  attackStyle: AttackStyle
-  skills: SkillsSave
-  inventory: InventorySave
-  equipment: EquipmentSave
-}
-
-// Player consumable events, added via declaration merging (see eventBus.ts).
-declare module '../core/eventBus' {
-  interface GameEvents {
-    /** Emitted when the player eats food (the item is already consumed). */
-    itemEaten: { itemId: string; healed: number; hpAfter: number }
-    /**
-     * Emitted when the player drinks a drinkable (the item is already
-     * consumed, boosts applied and any empty container added). `emptyItemId`
-     * is the container left behind, or null when the drink leaves nothing.
-     */
-    itemDrunk: { itemId: string; emptyItemId: string | null }
-    /** Emitted when the player drops an inventory stack on the ground. */
-    itemDropped: { itemId: string; quantity: number; x: number; y: number }
-    /** Emitted when the player buries bones (the bone is already consumed). */
-    bonesBuried: { itemId: string; xp: number }
-  }
-}
+export type { ConsumeFailReason, PlayerAction, PlayerActionKind, PlayerSave } from './playerTypes'
 
 export class Player {
   readonly skills: Skills
@@ -391,6 +329,35 @@ export class Player {
   }
 
   /**
+   * Walk-then-act helper: queue movement to a tile adjacent (Chebyshev 1) to
+   * `target`, then set `action` so it begins ticking on arrival. Replaces the
+   * movement queue and current action. Returns false (leaving state unchanged)
+   * when no adjacent tile is reachable. Shared by every "walk up to something
+   * and act on it" command (gather/plant/harvest/attack/cook/smelt/forge/tan/
+   * openBank/openShop).
+   */
+  private walkAdjacentThen(target: Vec2, action: PlayerAction): boolean {
+    const path = findPathAdjacent(this.world, this.position, target)
+    if (path === null) return false
+    this.path = path
+    this._action = action
+    return true
+  }
+
+  /**
+   * Walk-then-act helper for actions performed ON a tile rather than adjacent
+   * to it: queue movement onto `tile`, then set `action`. Returns false
+   * (leaving state unchanged) when the tile is unreachable. Used by pickUp.
+   */
+  private walkOntoThen(tile: Vec2, action: PlayerAction): boolean {
+    const path = findPath(this.world, this.position, tile)
+    if (path === null) return false
+    this.path = path
+    this._action = action
+    return true
+  }
+
+  /**
    * Start gathering from a resource node. Validates up front (emitting
    * `actionFailed` with the reason on failure), then queues a walk to a
    * tile adjacent (Chebyshev 1) to the node and sets a GatherAction. The
@@ -404,11 +371,7 @@ export class Player {
       this.events.emit('actionFailed', { reason })
       return false
     }
-    const path = findPathAdjacent(this.world, this.position, node.position)
-    if (path === null) return false
-    this.path = path
-    this._action = new GatherAction(node)
-    return true
+    return this.walkAdjacentThen(node.position, new GatherAction(node))
   }
 
   /**
@@ -424,11 +387,7 @@ export class Player {
       this.events.emit('actionFailed', { reason })
       return false
     }
-    const path = findPathAdjacent(this.world, this.position, patch.position)
-    if (path === null) return false
-    this.path = path
-    this._action = new PlantAction(patch, seedItemId)
-    return true
+    return this.walkAdjacentThen(patch.position, new PlantAction(patch, seedItemId))
   }
 
   /**
@@ -444,11 +403,7 @@ export class Player {
       this.events.emit('actionFailed', { reason })
       return false
     }
-    const path = findPathAdjacent(this.world, this.position, patch.position)
-    if (path === null) return false
-    this.path = path
-    this._action = new HarvestAction(patch)
-    return true
+    return this.walkAdjacentThen(patch.position, new HarvestAction(patch))
   }
 
   /**
@@ -462,11 +417,7 @@ export class Player {
       this.events.emit('actionFailed', { reason: 'target_dead' })
       return false
     }
-    const path = findPathAdjacent(this.world, this.position, npc.position)
-    if (path === null) return false
-    this.path = path
-    this._action = new AttackAction(npc)
-    return true
+    return this.walkAdjacentThen(npc.position, new AttackAction(npc))
   }
 
   /**
@@ -495,11 +446,7 @@ export class Player {
    * emitting `actionFailed: inventory_full` when nothing fits.
    */
   pickUp(item: GroundItem): boolean {
-    const path = findPath(this.world, this.position, { x: item.x, y: item.y })
-    if (path === null) return false
-    this.path = path
-    this._action = new PickUpAction(item)
-    return true
+    return this.walkOntoThen({ x: item.x, y: item.y }, new PickUpAction(item))
   }
 
   /**
@@ -536,11 +483,7 @@ export class Player {
       this.events.emit('actionFailed', { reason })
       return false
     }
-    const path = findPathAdjacent(this.world, this.position, source.position)
-    if (path === null) return false
-    this.path = path
-    this._action = new CookAction(recipe, source)
-    return true
+    return this.walkAdjacentThen(source.position, new CookAction(recipe, source))
   }
 
   /**
@@ -559,11 +502,7 @@ export class Player {
       this.events.emit('actionFailed', { reason })
       return false
     }
-    const path = findPathAdjacent(this.world, this.position, source.position)
-    if (path === null) return false
-    this.path = path
-    this._action = new SmeltAction(recipe, source)
-    return true
+    return this.walkAdjacentThen(source.position, new SmeltAction(recipe, source))
   }
 
   /**
@@ -582,11 +521,7 @@ export class Player {
       this.events.emit('actionFailed', { reason })
       return false
     }
-    const path = findPathAdjacent(this.world, this.position, source.position)
-    if (path === null) return false
-    this.path = path
-    this._action = new ForgeAction(recipe, source)
-    return true
+    return this.walkAdjacentThen(source.position, new ForgeAction(recipe, source))
   }
 
   /**
@@ -605,11 +540,7 @@ export class Player {
       this.events.emit('actionFailed', { reason })
       return false
     }
-    const path = findPathAdjacent(this.world, this.position, source.position)
-    if (path === null) return false
-    this.path = path
-    this._action = new TanAction(recipe, source)
-    return true
+    return this.walkAdjacentThen(source.position, new TanAction(recipe, source))
   }
 
   /**
@@ -662,11 +593,7 @@ export class Player {
       this.events.emit('actionFailed', { reason: 'invalid_source' })
       return false
     }
-    const path = findPathAdjacent(this.world, this.position, booth.position)
-    if (path === null) return false
-    this.path = path
-    this._action = new OpenBankAction(booth)
-    return true
+    return this.walkAdjacentThen(booth.position, new OpenBankAction(booth))
   }
 
   /**
@@ -682,11 +609,7 @@ export class Player {
       this.events.emit('actionFailed', { reason: 'invalid_source' })
       return false
     }
-    const path = findPathAdjacent(this.world, this.position, counter.position)
-    if (path === null) return false
-    this.path = path
-    this._action = new OpenShopAction(counter)
-    return true
+    return this.walkAdjacentThen(counter.position, new OpenShopAction(counter))
   }
 
   /** JSON-safe snapshot of the player, for save/load. */
