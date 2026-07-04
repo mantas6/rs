@@ -14,6 +14,7 @@ import { FeatherIcon } from './FeatherIcon'
 import { FishIcon } from './FishIcon'
 import { GlovesIcon } from './GlovesIcon'
 import { HelmetIcon } from './HelmetIcon'
+import { HerbIcon } from './HerbIcon'
 import { HideIcon } from './HideIcon'
 import { KnifeIcon } from './KnifeIcon'
 import { LeatherIcon } from './LeatherIcon'
@@ -21,12 +22,15 @@ import { LogsIcon } from './LogsIcon'
 import { MeatIcon } from './MeatIcon'
 import { NeedleIcon } from './NeedleIcon'
 import { NetIcon } from './NetIcon'
+import { NewtEyeIcon } from './NewtEyeIcon'
 import { OnionIcon } from './OnionIcon'
 import { OreIcon } from './OreIcon'
 import { PickaxeIcon } from './PickaxeIcon'
 import { PlatebodyIcon } from './PlatebodyIcon'
 import { PlatelegsIcon } from './PlatelegsIcon'
 import { PotatoIcon } from './PotatoIcon'
+import { PotionVialIcon } from './PotionVialIcon'
+import { RootIcon } from './RootIcon'
 import { SackIcon } from './SackIcon'
 import { ScimitarIcon } from './ScimitarIcon'
 import { SeedIcon } from './SeedIcon'
@@ -38,6 +42,7 @@ import { TinderboxIcon } from './TinderboxIcon'
 import { TunicIcon } from './TunicIcon'
 import { TwoHandedSwordIcon } from './TwoHandedSwordIcon'
 import { UnstrungBowIcon } from './UnstrungBowIcon'
+import { VialIcon } from './VialIcon'
 
 // Material palette shared across item glyphs.
 const BRONZE = '#b08d57'
@@ -110,6 +115,18 @@ const ICONS: Record<string, () => ReactElement> = {
   cabbage: () => <CabbageIcon />,
   beer: () => <BeerIcon />,
   beer_glass: () => <BeerGlassIcon />,
+  grimy_guam: () => <HerbIcon color="#4a6b3a" />,
+  guam_leaf: () => <HerbIcon color="#5bbf6a" />,
+  grimy_tarromin: () => <HerbIcon color="#6b6a2a" />,
+  tarromin: () => <HerbIcon color="#a7b84a" />,
+  vial_of_water: () => <VialIcon liquid="#4aa3d8" />,
+  empty_vial: () => <VialIcon />,
+  eye_of_newt: () => <NewtEyeIcon />,
+  limpwurt_root: () => <RootIcon />,
+  guam_potion_unf: () => <PotionVialIcon color="#8fae7a" />,
+  tarromin_potion_unf: () => <PotionVialIcon color="#9a9a5a" />,
+  attack_potion: () => <PotionVialIcon color="#d24a4a" />,
+  strength_potion: () => <PotionVialIcon color="#e08a2a" />,
 }
 
 /** True when the item id has a dedicated (non-generic) icon glyph. */

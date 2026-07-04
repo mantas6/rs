@@ -24,6 +24,11 @@ export const shops: Record<string, ShopDef> = {
       { itemId: 'potato_seed', price: 0 },
       { itemId: 'onion_seed', price: 0 },
       { itemId: 'cabbage_seed', price: 0 },
+      // Herblore supplies: vials of water and the two potion secondaries.
+      // Grimy herbs come from monster drops (see npcs.ts).
+      { itemId: 'vial_of_water', price: 0 },
+      { itemId: 'eye_of_newt', price: 0 },
+      { itemId: 'limpwurt_root', price: 0 },
     ],
   },
   lumbridge_pub: {

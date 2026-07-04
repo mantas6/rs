@@ -30,6 +30,8 @@ export const npcs: Record<string, NpcDef> = {
         { itemId: null, quantity: 1, weight: 5 },
         { itemId: 'coins', quantity: [1, 5], weight: 4 },
         { itemId: 'bronze_sword', quantity: 1, weight: 1 },
+        { itemId: 'grimy_guam', quantity: 1, weight: 2 },
+        { itemId: 'grimy_tarromin', quantity: 1, weight: 1 },
       ],
     },
   },

@@ -23,6 +23,17 @@ import {
 } from '../systems/firemaking'
 import { FletchAction, getFletchingRecipe, validateFletch } from '../systems/fletching'
 import { GatherAction, validateGather } from '../systems/gathering'
+import {
+  CleanAction,
+  getHerbCleaningRecipe,
+  getPotionRecipe,
+  getUnfinishedPotionRecipe,
+  MixPotionAction,
+  MixUnfinishedAction,
+  validateClean,
+  validateMixPotion,
+  validateMixUnfinished,
+} from '../systems/herblore'
 import { Inventory } from '../systems/inventory'
 import { getItemDef } from '../systems/itemRegistry'
 import { Prayers } from '../systems/prayer'
@@ -621,6 +632,63 @@ export class Player {
       return false
     }
     this._action = new FletchAction(recipe)
+    return true
+  }
+
+  /**
+   * Start cleaning grimy herbs into clean herbs from the inventory (no
+   * walking — you clean where you stand, like sewing leather). Validates up
+   * front (level, at least one grimy herb), emitting `actionFailed` with the
+   * reason on failure, then sets a CleanAction that cleans one herb per
+   * HERBLORE_INTERVAL_TICKS until the grimy herbs run out. Throws when no
+   * cleaning recipe exists for `grimyItemId`.
+   */
+  clean(grimyItemId: string): boolean {
+    const recipe = getHerbCleaningRecipe(grimyItemId)
+    const reason = validateClean(this, recipe)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    this._action = new CleanAction(recipe)
+    return true
+  }
+
+  /**
+   * Start mixing clean herbs and vials of water into unfinished potions from
+   * the inventory (no walking, like cleaning). Validates up front (a clean
+   * herb and a vial of water), emitting `actionFailed` with the reason on
+   * failure, then sets a MixUnfinishedAction that mixes one per
+   * HERBLORE_INTERVAL_TICKS until an ingredient runs out. Grants no xp (like
+   * OSRS). Throws when no recipe exists for `unfinishedItemId`.
+   */
+  mixUnfinished(unfinishedItemId: string): boolean {
+    const recipe = getUnfinishedPotionRecipe(unfinishedItemId)
+    const reason = validateMixUnfinished(this, recipe)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    this._action = new MixUnfinishedAction(recipe)
+    return true
+  }
+
+  /**
+   * Start mixing unfinished potions and secondaries into finished potions
+   * from the inventory (no walking, like cleaning). Validates up front (level,
+   * an unfinished potion and a secondary), emitting `actionFailed` with the
+   * reason on failure, then sets a MixPotionAction that mixes one per
+   * HERBLORE_INTERVAL_TICKS until an ingredient runs out. Throws when no
+   * recipe exists for `potionItemId`.
+   */
+  mixPotion(potionItemId: string): boolean {
+    const recipe = getPotionRecipe(potionItemId)
+    const reason = validateMixPotion(this, recipe)
+    if (reason !== null) {
+      this.events.emit('actionFailed', { reason })
+      return false
+    }
+    this._action = new MixPotionAction(recipe)
     return true
   }
 

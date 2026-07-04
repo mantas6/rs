@@ -49,6 +49,7 @@ export const ACTION_POSE: Record<PlayerActionKind, PlayerPose> = {
   smithing: 'cook', // stand over the furnace, same stance as cooking
   crafting: 'cook', // tanning at the tannery / sewing leather
   fletching: 'cook', // carving logs with a knife, same seated stance
+  herblore: 'cook', // mixing potions from the inventory, same seated stance
   farming: 'cook', // kneeling over the patch, same crouched stance
   banking: 'bank',
   shopping: 'bank',

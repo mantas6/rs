@@ -404,10 +404,40 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
   },
   herblore: {
     skill: 'herblore',
-    summary: 'Brews potions from herbs in classic OSRS. Not yet implemented in this version.',
-    trainable: false,
-    steps: [],
-    notes: [],
+    summary:
+      'Clean grimy herbs, mix them into unfinished potions with a vial of water, then finish them with a secondary ingredient into potions that temporarily boost your combat stats.',
+    trainable: true,
+    steps: [
+      {
+        level: 3,
+        action:
+          'Kill goblins for Grimy guam, clean it into a Guam leaf (2.5 XP), then use the leaf on a Vial of water to make a Guam potion (unf) — no XP, no level needed.',
+        itemIds: ['grimy_guam', 'guam_leaf', 'vial_of_water', 'guam_potion_unf'],
+      },
+      {
+        level: 3,
+        action:
+          'Add an Eye of newt to a Guam potion (unf) to brew an Attack potion (25 XP). Drink it to temporarily raise your Attack level for combat.',
+        itemIds: ['guam_potion_unf', 'eye_of_newt', 'attack_potion'],
+      },
+      {
+        level: 11,
+        action:
+          'Herblore 11 lets you clean Grimy tarromin into Tarromin (5 XP) and mix it with a Vial of water into a Tarromin potion (unf).',
+        itemIds: ['grimy_tarromin', 'tarromin', 'vial_of_water', 'tarromin_potion_unf'],
+      },
+      {
+        level: 12,
+        action:
+          'Add a Limpwurt root to a Tarromin potion (unf) to brew a Strength potion (50 XP). Drink it to temporarily raise your Strength level for combat.',
+        itemIds: ['tarromin_potion_unf', 'limpwurt_root', 'strength_potion'],
+      },
+    ],
+    notes: [
+      'Grimy guam and grimy tarromin are dropped by goblins across the river; clean them straight from your inventory.',
+      'Vials of water, eyes of newt and limpwurt roots are stocked free at the Lumbridge general store.',
+      'Potion boosts decay one level per minute back toward your base level, just like other temporary boosts.',
+    ],
   },
   agility: {
     skill: 'agility',

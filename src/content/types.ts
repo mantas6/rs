@@ -320,6 +320,59 @@ export interface FletchingRecipeDef {
   xp: number
 }
 
+/**
+ * Herb-cleaning definition (Herblore skill): a grimy herb rubbed clean into
+ * its usable form (see herblore.ts). Cleaning is done from the inventory (no
+ * tool, no source), grants Herblore xp and always succeeds. Keyed by the
+ * grimy herb item id in herbCleaningRecipes.
+ */
+export interface HerbCleaningDef {
+  /** Grimy herb consumed per clean. */
+  grimyItemId: string
+  /** Clean herb produced per clean. */
+  cleanItemId: string
+  /** Minimum (boostable) Herblore level to clean this herb. */
+  levelRequired: number
+  /** Herblore xp per herb cleaned. */
+  xp: number
+}
+
+/**
+ * Unfinished-potion definition (Herblore skill): a clean herb dropped into a
+ * vial of water to make an unfinished potion (see herblore.ts). Made from the
+ * inventory; like OSRS it grants NO Herblore xp and has no level requirement
+ * (the xp comes from finishing the potion with a secondary). Keyed by the
+ * unfinished-potion item id in unfinishedPotionRecipes.
+ */
+export interface UnfinishedPotionDef {
+  /** Unfinished potion produced per mix. */
+  unfinishedItemId: string
+  /** Clean herb consumed per mix. */
+  herbItemId: string
+  /** Vial of water consumed per mix. */
+  vialItemId: string
+}
+
+/**
+ * Finished-potion recipe definition (Herblore skill): an unfinished potion
+ * combined with a secondary ingredient into a finished potion (see
+ * herblore.ts). Made from the inventory; grants Herblore xp and always
+ * succeeds. Keyed by the finished-potion item id in potionRecipes. The
+ * potion's temporary effect on drink lives in its item's DrinkDef.
+ */
+export interface PotionRecipeDef {
+  /** Finished potion produced per mix. */
+  potionItemId: string
+  /** Unfinished potion consumed per mix. */
+  unfinishedItemId: string
+  /** Secondary ingredient consumed per mix. */
+  secondaryItemId: string
+  /** Minimum (boostable) Herblore level to mix this potion. */
+  levelRequired: number
+  /** Herblore xp per potion mixed. */
+  xp: number
+}
+
 /** Category of farm patch; a seed may only be planted in a matching patch. */
 export type FarmPatchCategory = 'allotment'
 

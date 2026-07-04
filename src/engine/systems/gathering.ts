@@ -9,6 +9,7 @@ import type { CookingFailReason } from './cooking'
 import type { CraftingFailReason, TanningFailReason } from './crafting'
 import type { FarmingFailReason } from './farming'
 import type { FiremakingFailReason } from './firemaking'
+import type { HerbloreFailReason } from './herblore'
 import { getItemDef } from './itemRegistry'
 import type { ShopFailReason } from './shop'
 import type { SmeltingFailReason } from './smithing'
@@ -30,6 +31,7 @@ export type ActionFailReason =
   | SmeltingFailReason
   | TanningFailReason
   | CraftingFailReason
+  | HerbloreFailReason
   | FarmingFailReason
   | BankFailReason
   | ShopFailReason

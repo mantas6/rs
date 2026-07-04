@@ -18,6 +18,7 @@ export type PlayerActionKind =
   | 'smithing'
   | 'crafting'
   | 'fletching'
+  | 'herblore'
   | 'farming'
   | 'banking'
   | 'shopping'

@@ -5,9 +5,12 @@ import type {
   CraftingRecipeDef,
   FiremakingDef,
   FletchingRecipeDef,
+  HerbCleaningDef,
+  PotionRecipeDef,
   SmeltingRecipeDef,
   SmithingRecipeDef,
   TanningRecipeDef,
+  UnfinishedPotionDef,
 } from './types'
 
 /**
@@ -245,5 +248,67 @@ export const fletchingRecipes: Record<string, FletchingRecipeDef> = {
     logItemId: 'oak_logs',
     levelRequired: 20,
     xp: 16.5,
+  },
+}
+
+/**
+ * Herb-cleaning recipes (Herblore), keyed by the grimy herb item id. Rubbing
+ * a grimy herb clean grants Herblore xp and always succeeds. Levels and xp
+ * follow OSRS (Guam at level 3, Tarromin at level 11). See herblore.ts.
+ */
+export const herbCleaningRecipes: Record<string, HerbCleaningDef> = {
+  grimy_guam: {
+    grimyItemId: 'grimy_guam',
+    cleanItemId: 'guam_leaf',
+    levelRequired: 3,
+    xp: 2.5,
+  },
+  grimy_tarromin: {
+    grimyItemId: 'grimy_tarromin',
+    cleanItemId: 'tarromin',
+    levelRequired: 11,
+    xp: 5,
+  },
+}
+
+/**
+ * Unfinished-potion recipes (Herblore), keyed by the unfinished-potion item
+ * id. A clean herb is dropped into a vial of water; like OSRS this grants no
+ * xp and has no level requirement. See herblore.ts.
+ */
+export const unfinishedPotionRecipes: Record<string, UnfinishedPotionDef> = {
+  guam_potion_unf: {
+    unfinishedItemId: 'guam_potion_unf',
+    herbItemId: 'guam_leaf',
+    vialItemId: 'vial_of_water',
+  },
+  tarromin_potion_unf: {
+    unfinishedItemId: 'tarromin_potion_unf',
+    herbItemId: 'tarromin',
+    vialItemId: 'vial_of_water',
+  },
+}
+
+/**
+ * Finished-potion recipes (Herblore), keyed by the finished-potion item id.
+ * An unfinished potion is combined with a secondary ingredient into a potion
+ * that grants a temporary combat boost when drunk (see the item's DrinkDef).
+ * Levels and xp follow OSRS (Attack potion at level 3, Strength potion at
+ * level 12). See herblore.ts.
+ */
+export const potionRecipes: Record<string, PotionRecipeDef> = {
+  attack_potion: {
+    potionItemId: 'attack_potion',
+    unfinishedItemId: 'guam_potion_unf',
+    secondaryItemId: 'eye_of_newt',
+    levelRequired: 3,
+    xp: 25,
+  },
+  strength_potion: {
+    potionItemId: 'strength_potion',
+    unfinishedItemId: 'tarromin_potion_unf',
+    secondaryItemId: 'limpwurt_root',
+    levelRequired: 12,
+    xp: 50,
   },
 }
