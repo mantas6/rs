@@ -5,9 +5,9 @@ import * as THREE from 'three'
 import type { World } from '../../engine'
 import type { SpriteResources, TilePos } from './resources'
 
-const GRASS_A = 0x3d5c33
-const GRASS_B = 0x38552f
-const BLOCKED = 0x2c3540
+const GRASS_A = 0x5fa049
+const GRASS_B = 0x559140
+const BLOCKED = 0x6f7684
 
 export interface GroundTiles {
   groundMesh: THREE.InstancedMesh

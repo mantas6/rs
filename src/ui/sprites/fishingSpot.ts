@@ -13,7 +13,7 @@ export function createFishingSpotMesh(
   for (const radius of [0.15, 0.3, 0.45]) {
     const ring = new THREE.Mesh(
       res.geo(new THREE.RingGeometry(radius, radius + 0.05, 24)),
-      res.mat(0x4fc3f7, { transparent: true, opacity: 0.8 }),
+      res.mat(0x5fd4ff, { transparent: true, opacity: 0.85 }),
     )
     ring.rotation.x = -Math.PI / 2
     ring.position.y = 0.03

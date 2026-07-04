@@ -76,6 +76,7 @@ export function createHitsplat(damage: number, baseHeight: number, spawnedAt: nu
     transparent: true,
     depthTest: false, // Always readable, drawn over the world like OSRS.
     depthWrite: false,
+    toneMapped: false, // UI overlay: keep the disc/number crisp, not tone-mapped.
   })
   const sprite = new THREE.Sprite(material)
   sprite.scale.set(SPRITE_SCALE, SPRITE_SCALE, SPRITE_SCALE)

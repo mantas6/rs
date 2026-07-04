@@ -311,6 +311,12 @@ export class GameRenderer {
     this.canvas = canvas
     this.game = game
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
+    // Correct sRGB output plus filmic tone mapping so the brighter lights
+    // below roll off gently instead of blowing out to flat white. Exposure
+    // sits just above 1 for a sunny, inviting look.
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.toneMappingExposure = 1.2
 
     // Size to the container's box (fallback to the nominal view if it hasn't
     // been laid out yet); the ResizeObserver below keeps it in sync.
@@ -319,14 +325,20 @@ export class GameRenderer {
     const initialH = parent?.clientHeight || VIEW_H
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setSize(initialW, initialH, false)
-    this.scene.background = new THREE.Color(0x0d0b08)
-    this.scene.fog = new THREE.Fog(0x0d0b08, 30, 60)
+    // Bright sky-blue backdrop; fog shares a lighter sky tint and is pushed
+    // far out so the world reads as open daylight rather than a dark box.
+    this.scene.background = new THREE.Color(0x8fc9f2)
+    this.scene.fog = new THREE.Fog(0xc6e6ff, 55, 130)
 
     this.camera = new THREE.PerspectiveCamera(50, initialW / initialH, 0.1, 200)
 
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.65))
-    const sun = new THREE.DirectionalLight(0xfff2d8, 1.1)
-    sun.position.set(20, 30, 10)
+    // Sky/ground hemisphere fill keeps shadowed sides bright and colourful
+    // (cool sky above, warm earth bounce below); the warm directional sun
+    // adds shape and gentle daylight highlights on top.
+    const hemi = new THREE.HemisphereLight(0xe4f2ff, 0x8a7d5a, 1.15)
+    this.scene.add(hemi)
+    const sun = new THREE.DirectionalLight(0xfff1d5, 1.35)
+    sun.position.set(24, 34, 14)
     this.scene.add(sun)
 
     this.buildGround()
