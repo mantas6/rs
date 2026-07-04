@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { skillGuides } from '../../content/guide'
 import type { Game, SkillName, Skills } from '../../engine'
-import { MAX_LEVEL, SKILL_NAMES, xpForLevel } from '../../engine'
+import { getItemDef, MAX_LEVEL, SKILL_NAMES, xpForLevel } from '../../engine'
+import { ItemIcon } from '../icons/ItemIcon'
 import { SkillIcon } from '../icons/SkillIcon'
 
 function title(skill: SkillName): string {
@@ -8,10 +10,11 @@ function title(skill: SkillName): string {
 }
 
 /**
- * Detail row shown when a skill is tapped/selected. Surfaces the same
- * information as the hover tooltip so it is reachable on touch devices:
- * current (and base, when boosted/drained) level, total xp, and the xp
- * remaining to the next level. Reads live values so it tracks xp gains.
+ * Detail shown when a skill is tapped/selected. Surfaces the xp figures
+ * (reachable on touch, unlike the hover tooltip) — current (and base, when
+ * boosted/drained) level, total xp, xp to the next level — AND that skill's
+ * training guide: how to train it, the items involved, and where to obtain
+ * them. Stats read live engine state; guide text comes from content/guide.ts.
  */
 function SkillDetail({ skills, skill }: { skills: Skills; skill: SkillName }) {
   const base = skills.getLevel(skill)
@@ -19,6 +22,7 @@ function SkillDetail({ skills, skill }: { skills: Skills; skill: SkillName }) {
   const xp = Math.floor(skills.getXp(skill))
   const atMax = base >= MAX_LEVEL
   const boostClass = current < base ? ' drained' : current > base ? ' boosted' : ''
+  const entry = skillGuides[skill]
   return (
     <div className="skill-detail" role="status" aria-live="polite">
       <div className="skill-detail-head">
@@ -43,14 +47,49 @@ function SkillDetail({ skills, skill }: { skills: Skills; skill: SkillName }) {
           </dd>
         </div>
       </dl>
+      <div className="skill-guide">
+        <p className="guide-summary">{entry.summary}</p>
+        {entry.steps.length > 0 && (
+          <ol className="guide-steps">
+            {entry.steps.map((step, index) => (
+              <li key={index} className="guide-step">
+                <div className="guide-step-head">
+                  <span className="guide-step-level">Lv {step.level}</span>
+                  <span className="guide-step-action">{step.action}</span>
+                </div>
+                {step.itemIds && step.itemIds.length > 0 && (
+                  <div className="guide-step-items">
+                    {step.itemIds.map((itemId) => (
+                      <span key={itemId} className="guide-item" title={getItemDef(itemId).name}>
+                        <ItemIcon itemId={itemId} />
+                        {getItemDef(itemId).name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
+        {entry.notes.length > 0 && (
+          <ul className="guide-notes">
+            {entry.notes.map((note, index) => (
+              <li key={index} className="guide-note">
+                {note}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   )
 }
 
 /**
  * All 23 skills as current/base with an exact-xp tooltip + combat level.
- * Each cell is a button: tapping it toggles a detail row that shows the
- * xp figures without needing a hover tooltip (which touch devices lack).
+ * Each cell is a button: tapping it toggles a detail that shows the xp
+ * figures and that skill's training guide (works on touch, where hover
+ * tooltips don't). The guide lives here rather than in a separate tab.
  */
 export function SkillsPanel({ game }: { game: Game }) {
   const skills = game.player.skills

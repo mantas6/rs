@@ -514,92 +514,11 @@ button {
   font-weight: 600;
 }
 
-/* ---- Guide ---- */
+/* ---- Skill guide (shown inside the selected skill's detail) ---- */
 
-.guide-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.guide-intro {
-  font-size: 11px;
-  color: #9c8d72;
-}
-
-.guide-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.guide-skill {
-  background: #2e2718;
-  border: 1px solid #4c3f28;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.guide-skill-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  width: 100%;
-  background: none;
-  border: none;
-  color: inherit;
-  font-family: inherit;
-  text-align: left;
-  padding: 7px 8px;
-  font-size: 12px;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.guide-skill-head:hover,
-.guide-skill-head:focus-visible {
-  background: #3a3020;
-}
-
-.guide-skill-name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #f4d03f;
-  font-weight: 600;
-  min-width: 0;
-}
-
-.guide-skill.locked .guide-skill-name {
-  color: #9c8d72;
-}
-
-.guide-skill-name .icon {
-  width: 13px;
-  height: 13px;
-}
-
-.guide-skill-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.guide-skill-level {
-  font-size: 11px;
-  color: #cbbb99;
-}
-
-.guide-skill-caret {
-  font-size: 13px;
-  color: #9c8d72;
-  width: 10px;
-  text-align: center;
-}
-
-.guide-skill-body {
-  padding: 2px 8px 8px;
+.skill-guide {
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px solid #4c3f28;
 }
 
