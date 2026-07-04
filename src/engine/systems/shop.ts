@@ -137,9 +137,14 @@ export class Shop {
    * Coins the open shop pays per item sold, i.e. `floor(value * sellRate)`.
    * Returns 0 when no shop is open, when the shop does not buy items (no
    * `sellRate`), or for coins themselves (which are the currency, not goods).
+   * Also returns 0 for items the shop itself hands out for free (stock
+   * `price === 0`): buying a free item and selling it back must never mint
+   * coins from nothing.
    */
   sellPrice(itemId: string): number {
     if (!this._current?.sellRate || itemId === 'coins') return 0
+    const entry = this._current.stock.find((s) => s.itemId === itemId)
+    if (entry?.price === 0) return 0
     return Math.floor(getItemDef(itemId).value * this._current.sellRate)
   }
 

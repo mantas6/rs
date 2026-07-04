@@ -4,6 +4,7 @@ import type { ShopDef } from '../../content/types'
 import { Game, type ObjectPlacement } from '../core/game'
 import type { WorldObject } from '../world/worldObject'
 import type { ActionFailReason } from './gathering'
+import { getItemDef } from './itemRegistry'
 import { getShopDef } from './shop'
 
 // testMap spawn is (2, 2); row 2 is fully walkable from x=1 to x=14.
@@ -190,6 +191,34 @@ describe('shop: selling', () => {
     game.shop.open(BUYING_SHOP)
     expect(game.shop.sellPrice('logs')).toBe(2) // floor(4 * 0.5)
     expect(game.shop.sellPrice('coins')).toBe(0) // currency, never bought
+  })
+
+  it('pays 0 for items the shop hands out for free (no minting coins)', () => {
+    const game = makeGame()
+    // A shop that both stocks an item for free and buys items back.
+    const freebieShop: ShopDef = {
+      id: 'test_freebie_shop',
+      name: 'Test Freebie Shop',
+      sellRate: 0.5,
+      stock: [
+        { itemId: 'logs', price: 0 }, // free to take
+        { itemId: 'feather', price: 5 }, // priced: still sells back normally
+      ],
+    }
+    game.shop.open(freebieShop)
+    // logs are free here, so the shop pays nothing to buy them back.
+    expect(game.shop.sellPrice('logs')).toBe(0)
+    // A priced/unstocked item is unaffected.
+    expect(game.shop.sellPrice('feather')).toBe(Math.floor(getItemDef('feather').value * 0.5))
+
+    game.player.inventory.add('logs', 3)
+    const sold: Array<{ itemId: string; quantity: number; revenue: number }> = []
+    game.events.on('itemSold', (e) => sold.push(e))
+
+    expect(game.shop.sell('logs', 3)).toBe(3)
+    expect(game.player.inventory.count('logs')).toBe(0)
+    expect(game.player.inventory.count('coins')).toBe(0) // no coins minted
+    expect(sold).toEqual([{ itemId: 'logs', quantity: 3, revenue: 0 }])
   })
 
   it('moves items out and pays coins in', () => {
