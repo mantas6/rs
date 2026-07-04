@@ -20,6 +20,14 @@ body {
   background: #16130f;
   color: #e8dcc0;
   font-family: system-ui, sans-serif;
+  /*
+   * Game UI, not a document: never let taps/drags select text. The
+   * -webkit- prefixes are required on iOS Safari, where -webkit-touch-callout
+   * also suppresses the long-press selection/callout popup.
+   */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 button {
