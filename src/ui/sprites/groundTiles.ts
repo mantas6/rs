@@ -30,8 +30,12 @@ import type { SpriteResources, TilePos } from './resources'
 
 /** Off-screen texture resolution (power-of-two so mipmaps generate). */
 const TEX_SIZE = 256
-/** Height/top of a stone wall box (must match the renderer's hover offset). */
-const STONE_HEIGHT = 0.8
+/**
+ * Height/top of a stone wall box (must match the renderer's hover offset).
+ * Exported so the building layer (buildings.ts) can sit its wall dressing and
+ * roof eaves at the exact same height as the pickable stone boxes.
+ */
+export const STONE_HEIGHT = 0.8
 /** Water sits a hair below the grass so shorelines read as a gentle dip. */
 const WATER_Y = -0.03
 /** Floor sits a hair above the grass so room thresholds never z-fight. */
@@ -303,8 +307,12 @@ function isWaterTile(world: World, x: number, y: number): boolean {
   return false
 }
 
-/** A stone wall tile: blocked, but not part of a water body — a room's wall. */
-function isStone(world: World, x: number, y: number): boolean {
+/**
+ * A stone wall tile: blocked, but not part of a water body — a room's wall.
+ * Exported so buildings.ts can find the wall tiles bordering a building
+ * interior (and dress them) without re-deriving the classification.
+ */
+export function isStone(world: World, x: number, y: number): boolean {
   return isBlocked(world, x, y) && !isWaterTile(world, x, y)
 }
 
@@ -352,8 +360,12 @@ function isEnclosed(world: World, x: number, y: number): boolean {
  * doorway — the threshold tile is open on one side, so it fails the enclosure
  * test and the spread can never leak outdoors or hop into a neighbouring fenced
  * field/pen that holds no object. Purely derived — no engine or content data.
+ *
+ * Exported so buildings.ts can reuse the exact same room set the terrain uses
+ * (splitting it into per-building footprints) — keeping the roofed buildings
+ * perfectly aligned with the flagstone floors, with zero change to this logic.
  */
-function computeFloorKeys(world: World): Set<number> {
+export function computeFloorKeys(world: World): Set<number> {
   const key = (x: number, y: number): number => y * world.width + x
   const floor = new Set<number>()
   const visited = new Set<number>()

@@ -20,6 +20,7 @@ import {
   approachAngle,
   createAnvilMesh,
   createBankBoothMesh,
+  createBuildings,
   createCookingRangeMesh,
   createFarmPatchMesh,
   createFireMesh,
@@ -38,6 +39,7 @@ import {
   decay01,
   disposeHitsplat,
   updateFarmPatchGrowth,
+  type BuildingsView,
   type FarmPatchView,
   progress01,
   SpriteResources,
@@ -234,6 +236,11 @@ export class GameRenderer {
   // the pick list), so clicks pass through to the ground tile beneath.
   private scenery!: SceneryView
 
+  // Building layer (thatch roofs + dressed walls + door frames), non-pickable.
+  // `buildingRoofs` are toggled visible per frame for OSRS-style roof removal.
+  private buildings!: BuildingsView
+  private buildingRoofs: THREE.Mesh[] = []
+
   // Per-engine-object views, synced against engine state every frame.
   private playerView!: PlayerView
   private readonly npcViews = new Map<Npc, NpcView>()
@@ -379,6 +386,7 @@ export class GameRenderer {
     this.buildNodes()
     this.buildPatches()
     this.buildScenery()
+    this.buildBuildings()
     this.playerView = createPlayerMesh(this.resources, game.player.x, game.player.y)
     this.dynamicRoot.add(this.playerView.group)
     // Build worn-gear visuals from the current (possibly save-restored)
@@ -523,6 +531,19 @@ export class GameRenderer {
     this.scene.add(this.scenery.group)
   }
 
+  /**
+   * Buildings: pitched thatch roofs, timber-framed plaster walls and door
+   * frames, derived from the same floored-room set as the terrain. Added to
+   * the scene (not dynamicRoot), so clicks pass through to the pickable
+   * stone/floor tiles beneath and the roofs never intercept walk-to. Each roof
+   * is kept so syncScene can hide the one the player is standing under.
+   */
+  private buildBuildings(): void {
+    this.buildings = createBuildings(this.resources, this.game.world)
+    this.buildingRoofs = this.buildings.roofs
+    this.scene.add(this.buildings.group)
+  }
+
   // ---- Tick interpolation ----
 
   /** Shift current → previous for every mover; runs once per engine tick. */
@@ -598,6 +619,16 @@ export class GameRenderer {
 
     // Gentle time-based sway for the foliage (one shared uniform write).
     this.scenery.sway.value = now / 1000
+
+    // OSRS-style roof removal: hide the roof of the building the player is
+    // currently standing inside so the interior stays visible.
+    if (this.buildingRoofs.length > 0) {
+      const playerKey = game.player.y * game.world.width + game.player.x
+      for (const roof of this.buildingRoofs) {
+        const footprint = roof.userData.footprint as Set<number> | undefined
+        roof.visible = !footprint?.has(playerKey)
+      }
+    }
 
     // Player.
     const p = this.moverPos(game.player, game.player.x, game.player.y)
