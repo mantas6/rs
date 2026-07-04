@@ -1,26 +1,43 @@
 import type { ReactElement } from 'react'
+import { ArrowShaftsIcon } from './ArrowShaftsIcon'
 import { AxeIcon } from './AxeIcon'
 import { BarIcon } from './BarIcon'
+import { BeerGlassIcon } from './BeerGlassIcon'
+import { BeerIcon } from './BeerIcon'
 import { BonesIcon } from './BonesIcon'
+import { BootIcon } from './BootIcon'
+import { CabbageIcon } from './CabbageIcon'
+import { ChapsIcon } from './ChapsIcon'
 import { CoinsIcon } from './CoinsIcon'
 import { DrumstickIcon } from './DrumstickIcon'
 import { FeatherIcon } from './FeatherIcon'
 import { FishIcon } from './FishIcon'
+import { GlovesIcon } from './GlovesIcon'
 import { HelmetIcon } from './HelmetIcon'
 import { HideIcon } from './HideIcon'
+import { KnifeIcon } from './KnifeIcon'
+import { LeatherIcon } from './LeatherIcon'
 import { LogsIcon } from './LogsIcon'
 import { MeatIcon } from './MeatIcon'
+import { NeedleIcon } from './NeedleIcon'
 import { NetIcon } from './NetIcon'
+import { OnionIcon } from './OnionIcon'
 import { OreIcon } from './OreIcon'
 import { PickaxeIcon } from './PickaxeIcon'
 import { PlatebodyIcon } from './PlatebodyIcon'
 import { PlatelegsIcon } from './PlatelegsIcon'
+import { PotatoIcon } from './PotatoIcon'
 import { SackIcon } from './SackIcon'
 import { ScimitarIcon } from './ScimitarIcon'
+import { SeedIcon } from './SeedIcon'
 import { ShieldIcon } from './ShieldIcon'
 import { ShrimpIcon } from './ShrimpIcon'
 import { SwordIcon } from './SwordIcon'
+import { ThreadIcon } from './ThreadIcon'
 import { TinderboxIcon } from './TinderboxIcon'
+import { TunicIcon } from './TunicIcon'
+import { TwoHandedSwordIcon } from './TwoHandedSwordIcon'
+import { UnstrungBowIcon } from './UnstrungBowIcon'
 
 // Material palette shared across item glyphs.
 const BRONZE = '#b08d57'
@@ -29,6 +46,7 @@ const STEEL = '#c8ccd2'
 const WOOD = '#8b5a2b'
 const OAK = '#6e4520'
 const BURNT = '#3d3833'
+const LEATHER = '#a9713f'
 
 /** itemId -> icon renderer for every item defined in src/content/items.ts. */
 const ICONS: Record<string, () => ReactElement> = {
@@ -43,6 +61,7 @@ const ICONS: Record<string, () => ReactElement> = {
   tinderbox: () => <TinderboxIcon />,
   bronze_sword: () => <SwordIcon color={BRONZE} />,
   bronze_scimitar: () => <ScimitarIcon color={BRONZE} />,
+  bronze_2h_sword: () => <TwoHandedSwordIcon color={BRONZE} />,
   wooden_shield: () => <ShieldIcon color={WOOD} />,
   bronze_full_helm: () => <HelmetIcon color={BRONZE} />,
   bronze_platebody: () => <PlatebodyIcon color={BRONZE} />,
@@ -71,6 +90,31 @@ const ICONS: Record<string, () => ReactElement> = {
   cooked_chicken: () => <DrumstickIcon color="#d29a56" />,
   burnt_chicken: () => <DrumstickIcon color={BURNT} />,
   feather: () => <FeatherIcon />,
+  leather: () => <LeatherIcon />,
+  needle: () => <NeedleIcon />,
+  thread: () => <ThreadIcon />,
+  leather_gloves: () => <GlovesIcon color={LEATHER} />,
+  leather_boots: () => <BootIcon color={LEATHER} />,
+  leather_body: () => <TunicIcon color={LEATHER} />,
+  leather_chaps: () => <ChapsIcon color={LEATHER} />,
+  knife: () => <KnifeIcon />,
+  arrow_shafts: () => <ArrowShaftsIcon />,
+  shortbow_u: () => <UnstrungBowIcon color={WOOD} />,
+  longbow_u: () => <UnstrungBowIcon color={WOOD} long />,
+  oak_shortbow_u: () => <UnstrungBowIcon color={OAK} />,
+  potato_seed: () => <SeedIcon color="#b98a4a" />,
+  onion_seed: () => <SeedIcon color="#d8c07a" />,
+  cabbage_seed: () => <SeedIcon color="#9ab060" />,
+  potato: () => <PotatoIcon />,
+  onion: () => <OnionIcon />,
+  cabbage: () => <CabbageIcon />,
+  beer: () => <BeerIcon />,
+  beer_glass: () => <BeerGlassIcon />,
+}
+
+/** True when the item id has a dedicated (non-generic) icon glyph. */
+export function hasItemIcon(itemId: string): boolean {
+  return itemId in ICONS
 }
 
 /**
