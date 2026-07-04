@@ -147,6 +147,7 @@ export const lumbridgeNodes: NodePlacement[] = [
   { defId: 'tin_rock', x: 40, y: 35 },
   { defId: 'iron_rock', x: 38, y: 34 },
   { defId: 'iron_rock', x: 42, y: 36 },
+  { defId: 'steel_rock', x: 44, y: 34 },
   // Net fishing spots on the west river bank.
   { defId: 'fishing_spot_net', x: 29, y: 15 },
   { defId: 'fishing_spot_net', x: 29, y: 24 },
@@ -181,6 +182,7 @@ export const lumbridgeNodes: NodePlacement[] = [
   { defId: 'tin_rock', x: 48, y: 49 },
   { defId: 'iron_rock', x: 41, y: 49 },
   { defId: 'iron_rock', x: 45, y: 52 },
+  { defId: 'steel_rock', x: 48, y: 52 },
   // Far-eastern ore field.
   { defId: 'copper_rock', x: 76, y: 44 },
   { defId: 'tin_rock', x: 80, y: 46 },
@@ -188,6 +190,7 @@ export const lumbridgeNodes: NodePlacement[] = [
   { defId: 'iron_rock', x: 82, y: 61 },
   { defId: 'copper_rock', x: 58, y: 38 },
   { defId: 'iron_rock', x: 85, y: 66 },
+  { defId: 'steel_rock', x: 85, y: 54 },
 
   // Fishing spots on the southern river banks and both ponds.
   { defId: 'fishing_spot_net', x: 29, y: 45 },

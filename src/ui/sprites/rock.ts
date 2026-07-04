@@ -7,6 +7,7 @@ const ORE_SPECKLE: Record<string, number> = {
   copper_rock: 0xc97e3d,
   tin_rock: 0xcfd4dc,
   iron_rock: 0xa04a3c,
+  steel_rock: 0x9aa6b0,
 }
 
 /** Both looks for a rock node; the renderer toggles their visibility. */

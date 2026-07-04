@@ -58,6 +58,11 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
           'Attack 5 unlocks the iron tools. Fight giant rats and goblins for tougher, faster targets.',
         itemIds: ['iron_axe', 'iron_pickaxe'],
       },
+      {
+        level: 10,
+        action: 'Attack 10 unlocks the steel tools, which hit harder still.',
+        itemIds: ['steel_axe', 'steel_pickaxe'],
+      },
     ],
     notes: [
       'The Accurate style grants 4 Attack XP per point of damage dealt, plus Hitpoints XP.',
@@ -170,7 +175,7 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
       },
     ],
     notes: [
-      'The Bronze axe works from level 1; the Iron axe cuts faster but needs Woodcutting 5 to use.',
+      'The Bronze axe works from level 1; the Iron axe cuts faster but needs Woodcutting 5, and the Steel axe faster still at Woodcutting 10.',
       'Trees stand in the forest west and south-west of the Lumbridge castle.',
     ],
   },
@@ -190,10 +195,15 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
         action: 'Mining 15 lets you mine Iron rocks for Iron ore (35 XP each).',
         itemIds: ['iron_ore'],
       },
+      {
+        level: 20,
+        action: 'Mining 20 lets you mine Steel rocks for Steel ore (37.5 XP each).',
+        itemIds: ['steel_ore'],
+      },
     ],
     notes: [
       'The mine is in the south-east, across the river bridge.',
-      'The Bronze pickaxe works from level 1; the Iron pickaxe needs Mining 5 to use.',
+      'The Bronze pickaxe works from level 1; the Iron pickaxe needs Mining 5 and the Steel pickaxe Mining 10 to use.',
       'Smelt Copper and Tin ore into Bronze bars at the furnace via Smithing, then forge the bars into gear at the anvil.',
     ],
   },
@@ -296,6 +306,12 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
         action:
           'Smithing 16 unlocks Bronze platelegs (3 bars, 37.5 XP) at the anvil, and Smithing 18 the Bronze platebody (5 bars, 62.5 XP).',
         itemIds: ['bronze_bar', 'bronze_platelegs', 'bronze_platebody'],
+      },
+      {
+        level: 20,
+        action:
+          'Smithing 20 lets you smelt Steel ore into Steel bars (17.5 XP), which always succeeds.',
+        itemIds: ['steel_ore', 'steel_bar'],
       },
     ],
     notes: [

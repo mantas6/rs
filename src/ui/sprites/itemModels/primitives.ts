@@ -53,6 +53,8 @@ export const COPPER = 0xb87333
 export const TIN = 0xc8c8d0
 /** Iron mineral flecks. */
 export const IRON_ORE = 0x8a4a3d
+/** Steel mineral flecks (cool blue-grey). */
+export const STEEL_ORE = 0x8c96a0
 /** Dull metal (tinderbox body). */
 export const METAL_GREY = 0x8f8f8f
 /** Darker metal (tinderbox lid). */

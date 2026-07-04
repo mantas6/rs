@@ -4,7 +4,7 @@
 // generic parcel so newly added content is never invisible on the ground.
 import * as THREE from 'three'
 import type { SpriteResources } from '../resources'
-import { BRONZE, BURNT, COPPER, IRON, IRON_ORE, OAK, TIN, WOOD } from './primitives'
+import { BRONZE, BURNT, COPPER, IRON, IRON_ORE, OAK, STEEL, STEEL_ORE, TIN, WOOD } from './primitives'
 import {
   createDrumstickModel,
   createFishModel,
@@ -47,8 +47,10 @@ const BUILDERS: Record<string, Builder> = {
   // Tools.
   bronze_axe: (r) => createAxeModel(r, BRONZE),
   iron_axe: (r) => createAxeModel(r, IRON),
+  steel_axe: (r) => createAxeModel(r, STEEL),
   bronze_pickaxe: (r) => createPickaxeModel(r, BRONZE),
   iron_pickaxe: (r) => createPickaxeModel(r, IRON),
+  steel_pickaxe: (r) => createPickaxeModel(r, STEEL),
   small_fishing_net: (r) => createFishingNetModel(r),
   tinderbox: (r) => createTinderboxModel(r),
 
@@ -66,8 +68,10 @@ const BUILDERS: Record<string, Builder> = {
   copper_ore: (r) => createOreModel(r, COPPER),
   tin_ore: (r) => createOreModel(r, TIN),
   iron_ore: (r) => createOreModel(r, IRON_ORE),
+  steel_ore: (r) => createOreModel(r, STEEL_ORE),
   bronze_bar: (r) => createBarModel(r, BRONZE),
   iron_bar: (r) => createBarModel(r, IRON),
+  steel_bar: (r) => createBarModel(r, STEEL),
 
   // Food (raw / cooked / burnt).
   raw_shrimps: (r) => createShrimpModel(r, SHRIMP_RAW),

@@ -1,10 +1,11 @@
 // Item definitions. Data-only: plain objects, no logic.
 //
 // Equipment requirements deviate slightly from OSRS for early-game pacing:
-// bronze tier is unrestricted, iron tier requires attack 5 (so requirement
-// gating is exercised from the very start of the game). Gathering tools
-// follow the same pacing: bronze tools are usable at level 1, iron tools
-// require level 5 in the matching gather skill.
+// bronze tier is unrestricted, iron tier requires attack 5 and steel tier
+// requires attack 10 (so requirement gating is exercised from the very start
+// of the game). Gathering tools follow the same pacing: bronze tools are
+// usable at level 1, iron tools require level 5 and steel tools require
+// level 10 in the matching gather skill.
 import type { ItemDef } from './types'
 
 export const items: Record<string, ItemDef> = {
@@ -44,6 +45,21 @@ export const items: Record<string, ItemDef> = {
       attackType: 'slash',
     },
   },
+  steel_axe: {
+    id: 'steel_axe',
+    name: 'Steel axe',
+    examine: 'A woodcutting axe.',
+    stackable: false,
+    value: 200,
+    tool: { kind: 'axe', tier: 3, requiredLevel: 10 },
+    equipment: {
+      slot: 'weapon',
+      requirements: { attack: 10 },
+      bonuses: { attackSlash: 7, attackCrush: 3, meleeStrength: 6 },
+      attackSpeed: 4,
+      attackType: 'slash',
+    },
+  },
   bronze_pickaxe: {
     id: 'bronze_pickaxe',
     name: 'Bronze pickaxe',
@@ -69,6 +85,21 @@ export const items: Record<string, ItemDef> = {
       slot: 'weapon',
       requirements: { attack: 5 },
       bonuses: { attackStab: 6, attackCrush: 3, meleeStrength: 4 },
+      attackSpeed: 5,
+      attackType: 'stab',
+    },
+  },
+  steel_pickaxe: {
+    id: 'steel_pickaxe',
+    name: 'Steel pickaxe',
+    examine: 'Used for mining.',
+    stackable: false,
+    value: 500,
+    tool: { kind: 'pickaxe', tier: 3, requiredLevel: 10 },
+    equipment: {
+      slot: 'weapon',
+      requirements: { attack: 10 },
+      bonuses: { attackStab: 8, attackCrush: 4, meleeStrength: 6 },
       attackSpeed: 5,
       attackType: 'stab',
     },
@@ -223,6 +254,13 @@ export const items: Record<string, ItemDef> = {
     stackable: false,
     value: 17,
   },
+  steel_ore: {
+    id: 'steel_ore',
+    name: 'Steel ore',
+    examine: 'This needs refining.',
+    stackable: false,
+    value: 34,
+  },
   bronze_bar: {
     id: 'bronze_bar',
     name: 'Bronze bar',
@@ -236,6 +274,13 @@ export const items: Record<string, ItemDef> = {
     examine: "It's a bar of iron.",
     stackable: false,
     value: 17,
+  },
+  steel_bar: {
+    id: 'steel_bar',
+    name: 'Steel bar',
+    examine: "It's a bar of steel.",
+    stackable: false,
+    value: 34,
   },
   raw_shrimps: {
     id: 'raw_shrimps',

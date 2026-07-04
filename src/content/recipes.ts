@@ -61,7 +61,8 @@ export const firemakingDefs: Record<string, FiremakingDef> = {
  * Smelting recipes (Smithing), keyed by the bar item id produced. Bronze is
  * made from one Copper and one Tin ore and always succeeds; iron needs a
  * single Iron ore but only smelts successfully half the time (a failed
- * attempt still consumes the ore, like OSRS). See smithing.ts.
+ * attempt still consumes the ore, like OSRS); steel needs a single Steel ore
+ * and always succeeds once you reach the higher level. See smithing.ts.
  */
 export const smeltingRecipes: Record<string, SmeltingRecipeDef> = {
   bronze_bar: {
@@ -80,6 +81,13 @@ export const smeltingRecipes: Record<string, SmeltingRecipeDef> = {
     levelRequired: 15,
     xp: 12.5,
     successChance: 0.5,
+  },
+  steel_bar: {
+    barItemId: 'steel_bar',
+    inputs: [{ itemId: 'steel_ore', quantity: 1 }],
+    levelRequired: 20,
+    xp: 17.5,
+    successChance: 1,
   },
 }
 
