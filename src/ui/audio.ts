@@ -46,13 +46,34 @@ function saveFlag(key: string, value: boolean): void {
   }
 }
 
+declare global {
+  interface Window {
+    // Older Safari (incl. iOS) only exposes the prefixed constructor.
+    webkitAudioContext?: typeof AudioContext
+  }
+}
+
+/** Resolve the AudioContext constructor with the legacy Safari fallback. */
+function getAudioContextCtor(): typeof AudioContext | undefined {
+  return typeof window === 'undefined'
+    ? undefined
+    : (window.AudioContext ?? window.webkitAudioContext)
+}
+
+/** User-gesture events that are allowed to unlock/resume audio on iOS. */
+const UNLOCK_EVENTS = ['pointerdown', 'touchend', 'keydown', 'click'] as const
+
 /**
  * Loads and plays the game's audio clips.
  *
- * Browser autoplay policy: an AudioContext may only start after a user
- * gesture, so `init()` eagerly fetches the encoded WAV bytes but defers
- * creating/decoding into an AudioContext until the first pointerdown,
- * at which point music also starts (if enabled).
+ * Browser autoplay policy: an AudioContext starts suspended and may only be
+ * resumed from inside a real user-gesture handler. iOS Safari is stricter —
+ * it additionally requires a buffer to actually play during that gesture and
+ * re-suspends the context whenever the page is backgrounded. So `init()`
+ * eagerly fetches the encoded WAV bytes but defers creating/resuming the
+ * AudioContext until the first gesture, plays a silent buffer to unlock iOS,
+ * keeps retrying on later gestures until the context is truly `running`, and
+ * re-resumes on `visibilitychange`. Music starts once the context is unlocked.
  */
 export class AudioManager {
   private ctx: AudioContext | null = null
@@ -62,7 +83,9 @@ export class AudioManager {
   private buffers = new Map<string, AudioBuffer>()
   private musicSource: AudioBufferSourceNode | null = null
   private lastPlayedAt = new Map<string, number>()
-  private removeGestureListener: (() => void) | null = null
+  private removeGestureListeners: (() => void) | null = null
+  private removeVisibilityListener: (() => void) | null = null
+  private decodeStarted = false
   private disposed = false
 
   private _sfxEnabled = loadFlag(STORAGE_SFX)
@@ -83,13 +106,8 @@ export class AudioManager {
   init(): void {
     this.disposed = false
     void this.fetchAll()
-    const unlock = () => {
-      this.removeGestureListener?.()
-      this.removeGestureListener = null
-      void this.unlock()
-    }
-    window.addEventListener('pointerdown', unlock)
-    this.removeGestureListener = () => window.removeEventListener('pointerdown', unlock)
+    this.armGestureUnlock()
+    this.armVisibilityResume()
   }
 
   /** Play a sound effect (no-op before unlock / while sfx muted). */
@@ -148,14 +166,15 @@ export class AudioManager {
 
   dispose(): void {
     this.disposed = true
-    this.removeGestureListener?.()
-    this.removeGestureListener = null
+    this.removeGestureListeners?.()
+    this.removeVisibilityListener?.()
     this.stopMusic()
     void this.ctx?.close()
     this.ctx = null
     this.sfxGain = null
     this.musicGain = null
     this.buffers.clear()
+    this.decodeStarted = false
   }
 
   private async fetchAll(): Promise<void> {
@@ -175,9 +194,67 @@ export class AudioManager {
     )
   }
 
+  /** Listen for the first user gesture(s) that let us unlock/resume audio. */
+  private armGestureUnlock(): void {
+    if (this.removeGestureListeners) return
+    const handler = (): void => {
+      void this.unlock()
+    }
+    for (const type of UNLOCK_EVENTS) window.addEventListener(type, handler)
+    this.removeGestureListeners = () => {
+      for (const type of UNLOCK_EVENTS) window.removeEventListener(type, handler)
+      this.removeGestureListeners = null
+    }
+  }
+
+  /** iOS re-suspends the context when backgrounded — resume when visible again. */
+  private armVisibilityResume(): void {
+    if (this.removeVisibilityListener) return
+    const handler = (): void => {
+      if (document.visibilityState !== 'visible') return
+      const ctx = this.ctx
+      if (!ctx || ctx.state !== 'suspended') return
+      void ctx.resume().then(() => {
+        if (!this.disposed) this.startMusic()
+      })
+    }
+    document.addEventListener('visibilitychange', handler)
+    this.removeVisibilityListener = () => {
+      document.removeEventListener('visibilitychange', handler)
+      this.removeVisibilityListener = null
+    }
+  }
+
+  /**
+   * Resume (and, on iOS, truly unlock) the AudioContext. Runs inside a user
+   * gesture; keeps the gesture listeners armed until the context reaches
+   * `running`, since the first attempt can silently fail on iOS.
+   */
   private async unlock(): Promise<void> {
-    if (this.disposed || this.ctx) return
-    const ctx = new AudioContext()
+    if (this.disposed) return
+    const ctx = this.ensureContext()
+    if (!ctx) return
+
+    // iOS only unlocks output if a buffer actually plays during the gesture.
+    this.playSilentBuffer(ctx)
+    try {
+      if (ctx.state === 'suspended') await ctx.resume()
+    } catch {
+      /* resume can reject outside a gesture — retry on the next one */
+    }
+    if (this.disposed) return
+
+    // Only stop listening once the context is genuinely running.
+    if (ctx.state === 'running') this.removeGestureListeners?.()
+    this.startMusic()
+  }
+
+  /** Lazily create the AudioContext (with the Safari fallback) + gain nodes. */
+  private ensureContext(): AudioContext | null {
+    if (this.ctx) return this.ctx
+    const AudioContextCtor = getAudioContextCtor()
+    if (!AudioContextCtor) return null
+    const ctx = new AudioContextCtor()
     this.ctx = ctx
     this.sfxGain = ctx.createGain()
     this.sfxGain.gain.value = 0.8
@@ -185,7 +262,22 @@ export class AudioManager {
     this.musicGain = ctx.createGain()
     this.musicGain.gain.value = 0.45
     this.musicGain.connect(ctx.destination)
-    if (ctx.state === 'suspended') await ctx.resume()
+    void this.decodeAll(ctx)
+    return ctx
+  }
+
+  /** Play a one-sample silent buffer to satisfy iOS' unlock requirement. */
+  private playSilentBuffer(ctx: AudioContext): void {
+    const source = ctx.createBufferSource()
+    source.buffer = ctx.createBuffer(1, 1, 22050)
+    source.connect(ctx.destination)
+    source.start(0)
+  }
+
+  /** Decode the fetched WAV bytes once, then (re)start music if enabled. */
+  private async decodeAll(ctx: AudioContext): Promise<void> {
+    if (this.decodeStarted) return
+    this.decodeStarted = true
 
     // Wait until fetches settle (fetchAll never rejects), then decode.
     for (let waited = 0; this.encoded.size === 0 && waited < 10_000; waited += 100) {
