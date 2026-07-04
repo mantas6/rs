@@ -506,6 +506,178 @@ button {
   font-weight: 600;
 }
 
+/* ---- Guide ---- */
+
+.guide-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.guide-intro {
+  font-size: 11px;
+  color: #9c8d72;
+}
+
+.guide-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.guide-skill {
+  background: #2e2718;
+  border: 1px solid #4c3f28;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.guide-skill-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  padding: 7px 8px;
+  font-size: 12px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.guide-skill-head:hover,
+.guide-skill-head:focus-visible {
+  background: #3a3020;
+}
+
+.guide-skill-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #f4d03f;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.guide-skill.locked .guide-skill-name {
+  color: #9c8d72;
+}
+
+.guide-skill-name .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.guide-skill-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.guide-skill-level {
+  font-size: 11px;
+  color: #cbbb99;
+}
+
+.guide-skill-caret {
+  font-size: 13px;
+  color: #9c8d72;
+  width: 10px;
+  text-align: center;
+}
+
+.guide-skill-body {
+  padding: 2px 8px 8px;
+  border-top: 1px solid #4c3f28;
+}
+
+.guide-summary {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #e8dcc0;
+  margin: 6px 0;
+}
+
+.guide-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.guide-step {
+  background: #26200f;
+  border: 1px solid #4c3f28;
+  border-radius: 3px;
+  padding: 5px 6px;
+}
+
+.guide-step-head {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.guide-step-level {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: #1a140c;
+  background: #d4af37;
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.guide-step-action {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #e8dcc0;
+}
+
+.guide-step-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.guide-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #46392a;
+  border: 1px solid #1a140c;
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-size: 10px;
+  color: #cbbb99;
+}
+
+.guide-item .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.guide-notes {
+  list-style: disc;
+  margin: 8px 0 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.guide-note {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #b8a888;
+}
+
 /* ---- Bank ---- */
 
 .bank-header {
