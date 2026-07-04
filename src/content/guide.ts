@@ -142,7 +142,7 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
   prayer: {
     skill: 'prayer',
     summary:
-      'Trained by burying bones dropped by monsters. Each bone buried grants Prayer XP. Activating prayers is not yet implemented.',
+      'Trained by burying bones dropped by monsters. Each bone buried grants Prayer XP and raises your prayer points, letting you activate combat prayers that boost your fighting stats.',
     trainable: true,
     steps: [
       {
@@ -151,10 +151,16 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
           'Kill monsters such as chickens, cows, giant rats and goblins for Bones, then click the Bones in your inventory to bury them for 4.5 Prayer XP each.',
         itemIds: ['bones'],
       },
+      {
+        level: 1,
+        action:
+          'Open the Prayer tab and switch on a prayer such as Thick Skin (+5% Defence), Burst of Strength (+5% Strength) or Clarity of Thought (+5% Attack) before a fight. Higher tiers unlock at higher Prayer levels.',
+      },
     ],
     notes: [
       'Bones are dropped by most monsters and buried straight from your inventory — no altar needed yet.',
-      'Activating prayers to boost combat is not yet implemented in this version.',
+      'Your Prayer level is both your maximum prayer points and the level requirement gate: higher-level prayers give bigger combat boosts but drain points faster.',
+      'Active prayers drain prayer points over time and all switch off when points hit 0 or you die. Points slowly regenerate on their own; keep burying bones to raise the maximum.',
     ],
   },
   woodcutting: {

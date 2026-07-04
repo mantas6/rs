@@ -6,6 +6,7 @@ import { BackpackIcon } from '../icons/BackpackIcon'
 import { BootIcon } from '../icons/BootIcon'
 import { HelmetIcon } from '../icons/HelmetIcon'
 import { MusicIcon } from '../icons/MusicIcon'
+import { PrayerIcon } from '../icons/PrayerIcon'
 import { ResetIcon } from '../icons/ResetIcon'
 import { SpeakerIcon } from '../icons/SpeakerIcon'
 import { StatsIcon } from '../icons/StatsIcon'
@@ -13,16 +14,18 @@ import type { MessageStore } from '../messages'
 import { clearStoredSave } from '../saveStorage'
 import { EquipmentPanel } from './EquipmentPanel'
 import { InventoryPanel } from './InventoryPanel'
+import { PrayerPanel } from './PrayerPanel'
 import { SkillsPanel } from './SkillsPanel'
 
-type Tab = 'inventory' | 'skills' | 'equipment'
+type Tab = 'inventory' | 'skills' | 'equipment' | 'prayer'
 
-const TABS: readonly Tab[] = ['inventory', 'skills', 'equipment']
+const TABS: readonly Tab[] = ['inventory', 'skills', 'equipment', 'prayer']
 
 const TAB_ICONS: Record<Tab, () => ReactElement> = {
   inventory: () => <BackpackIcon />,
   skills: () => <StatsIcon />,
   equipment: () => <HelmetIcon color="currentColor" />,
+  prayer: () => <PrayerIcon />,
 }
 
 /**
@@ -127,6 +130,7 @@ export function SidePanel({
       {tab === 'inventory' && <InventoryPanel game={game} store={store} refresh={refresh} />}
       {tab === 'skills' && <SkillsPanel game={game} />}
       {tab === 'equipment' && <EquipmentPanel game={game} store={store} refresh={refresh} />}
+      {tab === 'prayer' && <PrayerPanel game={game} refresh={refresh} />}
     </aside>
   )
 }

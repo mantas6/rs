@@ -3,7 +3,7 @@
 // useSyncExternalStore; UI code may also push its own lines (examine,
 // drop feedback, "can't reach that", ...).
 import type { ActionFailReason, Game, SkillName } from '../engine'
-import { getItemDef, getNpcDef, getResourceNodeDef } from '../engine'
+import { getItemDef, getNpcDef, getPrayerDef, getResourceNodeDef } from '../engine'
 
 /** Maximum number of retained log entries. */
 export const MESSAGE_CAP = 100
@@ -120,6 +120,15 @@ export function connectGameMessages(game: Game, store: MessageStore): () => void
     }),
     game.events.on('playerDied', () => {
       store.push('Oh dear, you are dead!')
+    }),
+    game.events.on('prayerActivated', ({ prayerId }) => {
+      store.push(`You activate ${getPrayerDef(prayerId).name}.`)
+    }),
+    game.events.on('prayerDeactivated', ({ prayerId }) => {
+      store.push(`You deactivate ${getPrayerDef(prayerId).name}.`)
+    }),
+    game.events.on('prayerPointsDepleted', () => {
+      store.push('You have run out of prayer points; you must recharge at an altar.')
     }),
     game.events.on('actionFailed', ({ reason }) => {
       store.push(FAIL_MESSAGES[reason])

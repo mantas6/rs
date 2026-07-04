@@ -4,6 +4,7 @@ import { npcs } from '../../content/npcs'
 import { Game, type NpcPlacement } from '../core/game'
 import { Rng } from '../core/rng'
 import { chebyshev } from '../world/vec2'
+import { xpForLevel } from './skills'
 import type { AttackStyle } from './combat'
 import {
   attackRoll,
@@ -271,6 +272,38 @@ describe('player death', () => {
     expect(player.action).toBeNull()
     expect(player.isMoving).toBe(false)
     expect(game.npcs[0].target).toBeNull() // npc released
+  })
+})
+
+describe('prayers affect combat', () => {
+  it('a strength prayer raises the effective strength level and max hit', () => {
+    // effectiveLevel(str 40, aggressive +3, prayerMult 1.15) vs no prayer.
+    const base = effectiveLevel(40, 3, 1)
+    const buffed = effectiveLevel(40, 3, 1.15) // Ultimate Strength +15%
+    expect(buffed).toBeGreaterThan(base)
+    // floor(40 * 1.15) + 3 + 8 = 46 + 11 = 57 vs 40 + 11 = 51
+    expect(base).toBe(51)
+    expect(buffed).toBe(57)
+    expect(maxHit(buffed, 0)).toBeGreaterThan(maxHit(base, 0))
+  })
+
+  it('an attack prayer raises the effective attack level', () => {
+    expect(effectiveLevel(60, 3, 1.2)).toBeGreaterThan(effectiveLevel(60, 3, 1))
+  })
+
+  it('a defence prayer raises effective defence used by performNpcAttack', () => {
+    // performNpcAttack passes player.prayers.defenceMultiplier() as prayerMult
+    // for the player's effective defence; assert the multiplier path raises it.
+    const game = makeGame([{ defId: 'cow', x: 6, y: 7 }])
+    game.player.skills.addXp('prayer', xpForLevel(30))
+    game.player.skills.addXp('defence', xpForLevel(40)) // so the % boost matters
+    game.player.activatePrayer('steel_skin') // +15% defence
+    expect(game.player.prayers.defenceMultiplier()).toBeCloseTo(1.15, 10)
+    const cl = game.player.skills.getCurrentLevel('defence')
+    const styleDef = 0
+    expect(effectiveLevel(cl, styleDef, game.player.prayers.defenceMultiplier())).toBeGreaterThan(
+      effectiveLevel(cl, styleDef, 1),
+    )
   })
 })
 

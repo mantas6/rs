@@ -24,6 +24,7 @@ import { FletchAction, getFletchingRecipe, validateFletch } from '../systems/fle
 import { GatherAction, validateGather } from '../systems/gathering'
 import { Inventory, type InventorySave } from '../systems/inventory'
 import { getItemDef } from '../systems/itemRegistry'
+import { Prayers } from '../systems/prayer'
 import { OpenShopAction } from '../systems/shop'
 import { Skills, type SkillsSave } from '../systems/skills'
 import {
@@ -115,6 +116,7 @@ export class Player {
   readonly skills: Skills
   readonly inventory: Inventory
   readonly equipment: Equipment
+  readonly prayers: Prayers
 
   private _x: number
   private _y: number
@@ -148,6 +150,26 @@ export class Player {
     this.skills = new Skills(events)
     this.inventory = new Inventory(events)
     this.equipment = new Equipment(events)
+    this.prayers = new Prayers(events)
+  }
+
+  /**
+   * Activate a combat prayer (drains prayer points while on; boosts combat).
+   * Returns false when the prayer is unknown/already on, the base Prayer
+   * level is too low, or prayer points are depleted. See systems/prayer.ts.
+   */
+  activatePrayer(id: string): boolean {
+    return this.prayers.activate(id, this.skills)
+  }
+
+  /** Deactivate a combat prayer. Returns false when it was not active. */
+  deactivatePrayer(id: string): boolean {
+    return this.prayers.deactivate(id)
+  }
+
+  /** Toggle a combat prayer on/off. Returns the resulting active state. */
+  togglePrayer(id: string): boolean {
+    return this.prayers.toggle(id, this.skills)
   }
 
   /**
@@ -611,6 +633,8 @@ export class Player {
     this.skills.restore(save.skills)
     this.inventory.restore(save.inventory)
     this.equipment.restore(save.equipment)
+    // Prayers are transient (never saved): always load with none active.
+    this.prayers.reset()
   }
 
   /**

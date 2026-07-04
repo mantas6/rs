@@ -201,10 +201,12 @@ export class Game {
    * 3. expire burnt-out fires (so a fire due this tick is no longer a
    *    valid cooking source this tick);
    * 4. update the player (movement / current action, incl. attacks);
-   * 5. update NPCs in spawn order (wander / chase / attack);
-   * 6. respawn dead NPCs whose timer has elapsed (they act next tick);
-   * 7. despawn expired ground items;
-   * 8. natural stat restore, then emit `tick` so listeners observe
+   * 5. drain active prayers (deterministic, tick-driven; may switch prayers
+   *    off when prayer points run out);
+   * 6. update NPCs in spawn order (wander / chase / attack);
+   * 7. respawn dead NPCs whose timer has elapsed (they act next tick);
+   * 8. despawn expired ground items;
+   * 9. natural stat restore, then emit `tick` so listeners observe
    *    settled state.
    */
   tick(): void {
@@ -218,6 +220,7 @@ export class Game {
     }
     this.fires.expireDue(this._tickCount)
     this.player.update(this)
+    this.player.prayers.drain(this.player.skills)
     for (const npc of this.npcs) {
       npc.update(this)
     }

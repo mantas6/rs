@@ -384,6 +384,38 @@ export interface DropTable {
   entries: DropEntry[]
 }
 
+/**
+ * Activatable combat prayer definition (Prayer skill).
+ *
+ * A prayer is switched on and off by the player and, while active, grants a
+ * fractional boost to one or more combat stats (attack / strength / defence)
+ * and steadily drains prayer points. Prayer points are modelled as the
+ * drainable current level of the `prayer` skill (see engine/systems/prayer.ts).
+ *
+ * Boosts are fractional multipliers applied on top of the base level, e.g.
+ * `strengthBonus: 0.1` grants +10% effective strength. When several active
+ * prayers boost the same stat, only the highest bonus applies (they do not
+ * stack). Data-only: no logic, no side effects.
+ */
+export interface PrayerDef {
+  id: string
+  name: string
+  examine: string
+  /** Base Prayer level required to use the prayer. */
+  levelRequired: number
+  /**
+   * Prayer points drained per PRAYER_DRAIN_PERIOD_TICKS (see prayer.ts) while
+   * the prayer is active. Higher-tier prayers drain faster. Integer.
+   */
+  drainRate: number
+  /** Fractional attack boost (e.g. 0.05 = +5%), if any. */
+  attackBonus?: number
+  /** Fractional strength boost (e.g. 0.05 = +5%), if any. */
+  strengthBonus?: number
+  /** Fractional defence boost (e.g. 0.05 = +5%), if any. */
+  defenceBonus?: number
+}
+
 /** NPC definition. */
 export interface NpcDef {
   id: string

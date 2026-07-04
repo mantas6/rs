@@ -523,6 +523,77 @@ button {
   font-weight: 600;
 }
 
+/* ---- Prayer ---- */
+
+.prayer-points {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #dceefc;
+  margin-bottom: 6px;
+}
+
+.prayer-points .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.prayer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.prayer-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #2e2718;
+  color: #cbbb99;
+  border: 1px solid #4c3f28;
+  border-radius: 3px;
+  padding: 4px 6px;
+  font-size: 11px;
+  text-align: left;
+}
+
+.prayer-row.active {
+  background: #24384a;
+  border-color: #6f9cc0;
+  color: #dceefc;
+}
+
+.prayer-row.locked {
+  color: #7d7061;
+  cursor: default;
+}
+
+.prayer-row-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.prayer-row-head .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.prayer-name {
+  font-weight: 600;
+}
+
+.prayer-level {
+  margin-left: auto;
+  color: #9c8d72;
+}
+
+.prayer-effect {
+  color: #9c8d72;
+  padding-left: 18px;
+}
+
 /* ---- Skill guide (shown inside the selected skill's detail) ---- */
 
 .skill-guide {

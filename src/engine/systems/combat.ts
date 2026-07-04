@@ -57,7 +57,9 @@ export const NPC_STYLE_BONUS = 1
 
 /**
  * OSRS effective level: floor(level * prayerMultiplier) + styleBonus + 8.
- * Prayers are not implemented yet; the multiplier defaults to 1.
+ * `prayerMult` is 1 when no combat prayer boosts this stat, or 1 + the
+ * highest active prayer bonus for the stat (see systems/prayer.ts). Callers
+ * pass the relevant multiplier from `player.prayers`.
  */
 export function effectiveLevel(currentLevel: number, styleBonus: number, prayerMult = 1): number {
   return Math.floor(currentLevel * prayerMult) + styleBonus + 8
@@ -152,12 +154,20 @@ export function performPlayerAttack(game: Game, npc: Npc): void {
   const c = npc.def.combat
 
   const atk = attackRoll(
-    effectiveLevel(player.skills.getCurrentLevel('attack'), styleBonus.attack),
+    effectiveLevel(
+      player.skills.getCurrentLevel('attack'),
+      styleBonus.attack,
+      player.prayers.attackMultiplier(),
+    ),
     bonuses[ATTACK_BONUS_KEY[type]],
   )
   const def = defenceRoll(effectiveLevel(c.defenceLevel, NPC_STYLE_BONUS), c.defenceBonuses[type])
   const max = maxHit(
-    effectiveLevel(player.skills.getCurrentLevel('strength'), styleBonus.strength),
+    effectiveLevel(
+      player.skills.getCurrentLevel('strength'),
+      styleBonus.strength,
+      player.prayers.strengthMultiplier(),
+    ),
     bonuses.meleeStrength,
   )
 
@@ -193,6 +203,7 @@ export function performNpcAttack(game: Game, npc: Npc): void {
     effectiveLevel(
       player.skills.getCurrentLevel('defence'),
       STYLE_BONUSES[player.attackStyle].defence,
+      player.prayers.defenceMultiplier(),
     ),
     bonuses[DEFENCE_BONUS_KEY[type]],
   )
@@ -212,13 +223,16 @@ export function performNpcAttack(game: Game, npc: Npc): void {
 }
 
 /**
- * OSRS-lite player death: emit `playerDied` (payload = death tile), restore
- * hitpoints to the full base level (clear the drain), release every NPC
- * targeting the player, and teleport to the map spawn. No items are lost.
+ * OSRS-lite player death: emit `playerDied` (payload = death tile), switch
+ * off all active prayers, restore hitpoints to the full base level (clear the
+ * drain), release every NPC targeting the player, and teleport to the map
+ * spawn. No items are lost.
  */
 export function handlePlayerDeath(game: Game): void {
   const { player, events } = game
   events.emit('playerDied', { x: player.x, y: player.y })
+  // Prayers switch off on death (they are transient).
+  player.prayers.reset()
   const skills = player.skills
   skills.boost('hitpoints', skills.getLevel('hitpoints') - skills.getCurrentLevel('hitpoints'))
   for (const npc of game.npcs) {
