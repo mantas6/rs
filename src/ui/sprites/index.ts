@@ -13,6 +13,13 @@ export { createGoblinMesh } from './goblinMesh'
 export { createGroundItemMesh, updateGroundItemSpin } from './groundItem'
 export { createGroundTiles, type GroundTiles } from './groundTiles'
 export { createHealthBar, updateHealthBar, type HealthBarView } from './healthBar'
+export {
+  createHitsplat,
+  disposeHitsplat,
+  HITSPLAT_LIFETIME_MS,
+  updateHitsplat,
+  type HitsplatView,
+} from './hitsplat'
 export { createHoverOutline } from './hoverOutline'
 export {
   createNpcMesh,

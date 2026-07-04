@@ -23,6 +23,7 @@ import {
   createFishingSpotMesh,
   createGroundItemMesh,
   createGroundTiles,
+  createHitsplat,
   createHoverOutline,
   createNpcMesh,
   createPlayerMesh,
@@ -30,6 +31,7 @@ import {
   createShopCounterMesh,
   createTreeMesh,
   decay01,
+  disposeHitsplat,
   progress01,
   SpriteResources,
   tileGroup,
@@ -37,9 +39,11 @@ import {
   updateFishingSpotPulse,
   updateGroundItemSpin,
   updateHealthBar,
+  updateHitsplat,
   updateNpcAnimation,
   updatePlayerAnimation,
   yawToward,
+  type HitsplatView,
   type NpcPose,
   type NpcView,
   type PlayerPose,
@@ -127,6 +131,10 @@ const DEATH_FALL_MS = 500
 const DEATH_TOTAL_MS = 1100
 /** Facing turn speed, radians per second. */
 const TURN_SPEED = 12
+/** World-space height a hitsplat floats at above the player's head. */
+const PLAYER_HITSPLAT_HEIGHT = 1.5
+/** Extra height above an NPC's health bar to float its hitsplats. */
+const NPC_HITSPLAT_OFFSET = 0.18
 
 /** Pose used for each engine action kind. */
 const ACTION_POSE: Record<PlayerActionKind, PlayerPose> = {
@@ -147,6 +155,19 @@ interface MoverLerp {
   py: number
   cx: number
   cy: number
+}
+
+/**
+ * A live combat hitsplat plus what it follows. `npc` is the damaged NPC (its
+ * interpolated position is tracked while alive; the splat freezes at the last
+ * spot once it dies/despawns), or null when the splat sits above the player.
+ * `x`/`z` cache the last world position so a frozen splat keeps rising in place.
+ */
+interface ActiveHitsplat {
+  view: HitsplatView
+  npc: Npc | null
+  x: number
+  z: number
 }
 
 interface NodeView {
@@ -188,6 +209,11 @@ export class GameRenderer {
   private readonly fireViews = new Map<Fire, THREE.Group>()
   private readonly itemViews = new Map<GroundItem, THREE.Object3D>()
   private hoverMesh!: THREE.LineLoop
+
+  // Floating damage numbers. Held in a plain array (never pickable), parented
+  // to their own scene group so they never intercept tile picks.
+  private readonly hitsplats: ActiveHitsplat[] = []
+  private readonly hitsplatRoot = new THREE.Group()
 
   // Tick interpolation state.
   private readonly movers = new Map<object, MoverLerp>()
@@ -319,9 +345,11 @@ export class GameRenderer {
           this.lastAttackAt = at
           if (view && damage > 0) view.lastHurtAt = at
           if (view && targetHpAfter <= 0) view.diedAt = at
+          this.spawnHitsplat(npc, damage, at) // Splat over the struck NPC.
         } else {
           if (targetId === 'player' && damage > 0) this.lastHurtAt = at
           if (view) view.lastAttackAt = at // NPC swings even on a miss
+          this.spawnHitsplat(null, damage, at) // Splat over the player.
         }
       }),
       game.events.on('playerDied', () => {
@@ -331,6 +359,7 @@ export class GameRenderer {
     this.hoverMesh = createHoverOutline(this.resources)
     this.scene.add(this.hoverMesh)
     this.scene.add(this.dynamicRoot)
+    this.scene.add(this.hitsplatRoot)
 
     // Snapshot mover positions once per engine tick for interpolation.
     this.unsubscribeTick = game.events.on('tick', () => this.snapshotMovers())
@@ -539,6 +568,57 @@ export class GameRenderer {
       }
       updateGroundItemSpin(view, now)
     }
+
+    this.updateHitsplats(now)
+  }
+
+  /** World XZ (tile center) of an entity's current interpolated position. */
+  private entityWorldPos(key: object, x: number, y: number): { x: number; z: number } {
+    const pos = this.moverPos(key, x, y)
+    return { x: pos.x + 0.5, z: pos.y + 0.5 }
+  }
+
+  /**
+   * Spawn a floating damage number over an entity: `npc` for a player hit,
+   * or null to place it above the player (NPC hit). Damage 0 renders the blue
+   * OSRS "miss" splat. It anchors just above the NPC's health bar (or a fixed
+   * height over the player) and is tracked in `hitsplats` until it fades.
+   */
+  private spawnHitsplat(npc: Npc | null, damage: number, at: number): void {
+    const baseHeight = npc
+      ? this.npcView(npc).hpBar.position.y + NPC_HITSPLAT_OFFSET
+      : PLAYER_HITSPLAT_HEIGHT
+    const view = createHitsplat(damage, baseHeight, at)
+    const start = npc
+      ? this.entityWorldPos(npc, npc.x, npc.y)
+      : this.entityWorldPos(this.game.player, this.game.player.x, this.game.player.y)
+    this.hitsplatRoot.add(view.sprite)
+    this.hitsplats.push({ view, npc, x: start.x, z: start.z })
+  }
+
+  /**
+   * Follow, rise/fade and reap the live hitsplats. Player splats track the
+   * player; NPC splats track the NPC while alive and freeze at their last
+   * spot once it dies/despawns (so they don't jump to a respawn tile).
+   */
+  private updateHitsplats(now: number): void {
+    for (let i = this.hitsplats.length - 1; i >= 0; i--) {
+      const h = this.hitsplats[i]
+      if (!h.npc) {
+        const p = this.entityWorldPos(this.game.player, this.game.player.x, this.game.player.y)
+        h.x = p.x
+        h.z = p.z
+      } else if (h.npc.alive) {
+        const p = this.entityWorldPos(h.npc, h.npc.x, h.npc.y)
+        h.x = p.x
+        h.z = p.z
+      }
+      if (!updateHitsplat(h.view, now, h.x, h.z)) {
+        this.hitsplatRoot.remove(h.view.sprite)
+        disposeHitsplat(h.view)
+        this.hitsplats.splice(i, 1)
+      }
+    }
   }
 
   /**
@@ -719,6 +799,11 @@ export class GameRenderer {
     window.removeEventListener('mouseup', this.onMouseUp)
     window.removeEventListener('keydown', this.onKeyDown)
     window.removeEventListener('keyup', this.onKeyUp)
+    for (const h of this.hitsplats) {
+      this.hitsplatRoot.remove(h.view.sprite)
+      disposeHitsplat(h.view)
+    }
+    this.hitsplats.length = 0
     this.resources.dispose()
     this.groundMesh.dispose()
     this.blockedMesh.dispose()
