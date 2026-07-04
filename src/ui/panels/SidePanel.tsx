@@ -68,14 +68,20 @@ export function SidePanel({
         <button
           type="button"
           className={`run-toggle${game.player.running ? ' active' : ''}`}
-          title={game.player.running ? 'Run: on' : 'Run: off'}
+          title={`Run: ${game.player.running ? 'on' : 'off'} — energy ${game.player.runEnergy}%`}
           onClick={() => {
             game.player.setRun(!game.player.running)
             refresh()
           }}
         >
-          <BootIcon color="currentColor" />
-          Run
+          <span
+            className="run-energy-fill"
+            style={{ width: `${game.player.runEnergy}%` }}
+          />
+          <span className="run-toggle-label">
+            <BootIcon color="currentColor" />
+            {game.player.runEnergy}%
+          </span>
         </button>
         <button
           type="button"

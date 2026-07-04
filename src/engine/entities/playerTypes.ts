@@ -50,6 +50,11 @@ export interface PlayerSave {
   x: number
   y: number
   running: boolean
+  /**
+   * Run energy in internal units (0..RUN_ENERGY_MAX = 0..100%). Added in save
+   * format v3; saves predating it default to a full tank on load.
+   */
+  runEnergy: number
   attackStyle: AttackStyle
   skills: SkillsSave
   inventory: InventorySave

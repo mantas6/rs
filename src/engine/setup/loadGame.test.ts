@@ -206,3 +206,45 @@ describe('save migration (v1 -> v2)', () => {
     expect(restored.world.patches[1].isPlanted).toBe(false)
   })
 })
+
+describe('save migration (v2 -> v3)', () => {
+  /** A v2 save: the current save minus `player.runEnergy`, tagged version 2. */
+  function buildV2Save(): Record<string, unknown> {
+    const current = JSON.parse(JSON.stringify(createNewGame(SEED).serialize())) as Record<
+      string,
+      unknown
+    >
+    const player = current.player as Record<string, unknown>
+    delete player.runEnergy
+    current.version = 2
+    return current
+  }
+
+  it('treats a v2 save (no run energy) as compatible', () => {
+    const v2 = buildV2Save()
+    expect('runEnergy' in (v2.player as Record<string, unknown>)).toBe(false)
+    expect(isCompatibleSave(v2)).toBe(true)
+  })
+
+  it('loads a v2 save via migration, defaulting run energy to 100%', () => {
+    const loaded = loadGame(buildV2Save())
+    expect(loaded).not.toBeNull()
+    const game = loaded as Game
+
+    expect(game.player.runEnergy).toBe(100)
+    // ...and it is playable: ticking does not throw and serializes at v3.
+    for (let i = 0; i < 5; i++) game.tick()
+    expect(game.serialize().version).toBe(SAVE_FORMAT_VERSION)
+  })
+
+  it('round-trips a partial run-energy value across a v3 save/load', () => {
+    const save = JSON.parse(JSON.stringify(createNewGame(SEED).serialize())) as GameSave
+    save.player.runEnergy = 4200
+
+    const loaded = loadGame(save)
+    expect(loaded).not.toBeNull()
+    const game = loaded as Game
+    expect(game.serialize().player.runEnergy).toBe(4200)
+    expect(game.player.runEnergy).toBe(42)
+  })
+})

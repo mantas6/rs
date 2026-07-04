@@ -22,6 +22,13 @@ const MIGRATIONS: Record<number, Migration> = {
   // crops, so start with an empty patch array; Game.restore restores patches
   // leniently, leaving every real patch in its default unplanted state.
   1: (save) => ({ ...save, patches: [], version: 2 }),
+  // v2 -> v3: run-energy/Agility system added `player.runEnergy` (internal
+  // units, 0..10000 == 0..100%). Old players default to a full tank (100%).
+  2: (save) => ({
+    ...save,
+    player: { ...save.player, runEnergy: 10000 },
+    version: 3,
+  }),
 }
 
 /** True when `value` is a non-null object (not an array). */

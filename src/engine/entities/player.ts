@@ -59,6 +59,38 @@ import type { PlayerAction, PlayerSave } from './playerTypes'
 
 export type { ConsumeFailReason, PlayerAction, PlayerActionKind, PlayerSave } from './playerTypes'
 
+/**
+ * Run energy is stored internally as an integer in hundredths of a percent
+ * (0..10000), OSRS-style. Using sub-percent units keeps regeneration integer
+ * and deterministic while still letting the rate scale finely with Agility.
+ * The public `runEnergy` getter exposes it as a whole-percent 0..100 for the
+ * UI; saves persist the raw 0..10000 value for full fidelity.
+ */
+export const RUN_ENERGY_MAX = 10000
+
+/** Run energy drained per tile actually stepped while running (1% per tile). */
+export const RUN_DRAIN_PER_TILE = 100
+
+/** Base run energy regenerated per tick while not running (0.24%/tick). */
+export const RUN_REGEN_BASE = 24
+
+/** Extra run-energy regen per Agility level per tick (0.02%/level/tick). */
+export const RUN_REGEN_PER_AGILITY = 2
+
+/**
+ * Run energy regenerated per tick while walking or idle, in internal units.
+ * Scales with the Agility base level, mirroring OSRS (higher Agility = faster
+ * recovery). Fully integer and deterministic.
+ *
+ * NOTE: Agility XP is intentionally NOT awarded from running — that would be
+ * non-canonical (OSRS grants Agility XP from courses, not from moving). Agility
+ * only affects the regen rate here.
+ * TODO: award Agility XP via dedicated Agility courses (a future feature).
+ */
+export function runEnergyRegenRate(agilityLevel: number): number {
+  return RUN_REGEN_BASE + agilityLevel * RUN_REGEN_PER_AGILITY
+}
+
 export class Player {
   readonly skills: Skills
   readonly inventory: Inventory
@@ -68,6 +100,8 @@ export class Player {
   private _x: number
   private _y: number
   private _running = false
+  /** Run energy in internal units (0..RUN_ENERGY_MAX); see RUN_ENERGY_MAX. */
+  private _runEnergy = RUN_ENERGY_MAX
   private _action: PlayerAction | null = null
   private _attackStyle: AttackStyle = 'accurate'
   /**
@@ -255,6 +289,15 @@ export class Player {
 
   get running(): boolean {
     return this._running
+  }
+
+  /**
+   * Current run energy as a whole-percent value in [0, 100], for the UI.
+   * Stored internally at finer (hundredths-of-a-percent) resolution; see
+   * RUN_ENERGY_MAX.
+   */
+  get runEnergy(): number {
+    return Math.floor(this._runEnergy / 100)
   }
 
   get isMoving(): boolean {
@@ -618,6 +661,8 @@ export class Player {
       x: this._x,
       y: this._y,
       running: this._running,
+      // Raw internal units (0..RUN_ENERGY_MAX), not the whole-percent getter.
+      runEnergy: this._runEnergy,
       attackStyle: this._attackStyle,
       skills: this.skills.serialize(),
       inventory: this.inventory.serialize(),
@@ -640,6 +685,11 @@ export class Player {
     this.path = []
     this._action = null
     this._running = save.running
+    // Lenient: saves predating run energy (or with an out-of-range value)
+    // default to a full tank. Clamp to the valid integer range.
+    this._runEnergy = Number.isFinite(save.runEnergy)
+      ? Math.max(0, Math.min(RUN_ENERGY_MAX, Math.floor(save.runEnergy)))
+      : RUN_ENERGY_MAX
     this._attackStyle = save.attackStyle
     this.skills.restore(save.skills)
     this.inventory.restore(save.inventory)
@@ -649,23 +699,52 @@ export class Player {
   }
 
   /**
-   * Advance one tick: walk 1 tile (2 when running) along the queued path,
-   * or tick the current action when idle. Called by Game.tick — not UI code.
+   * Advance one tick: walk 1 tile (2 when actually running) along the queued
+   * path, or tick the current action when idle. Also updates run energy:
+   * moving while running drains it; walking or standing still regenerates it
+   * (faster at higher Agility). Running is only effective while energy
+   * remains; hitting 0 auto-reverts the player to walking (see
+   * drainRunEnergy). Called by Game.tick — not UI code.
    */
   update(game: Game): void {
     if (this.path.length > 0) {
-      const steps = this._running ? 2 : 1
+      // Running only takes effect while there is energy to spend.
+      const runningNow = this._running && this._runEnergy > 0
+      const steps = runningNow ? 2 : 1
+      let stepped = 0
       for (let i = 0; i < steps && this.path.length > 0; i++) {
         const next = this.path.shift() as Vec2
         this._x = next.x
         this._y = next.y
+        stepped++
       }
       this.events.emit('playerMoved', { x: this._x, y: this._y })
+      if (runningNow) this.drainRunEnergy(stepped)
+      else this.regenRunEnergy()
       return
     }
+    // Standing still (idle or performing a stationary action) regenerates.
+    this.regenRunEnergy()
     if (this._action) {
       const stillActive = this._action.onTick(game)
       if (!stillActive) this._action = null
     }
+  }
+
+  /**
+   * Spend run energy for `tiles` tiles stepped while running. When energy is
+   * exhausted the player auto-reverts to walking (running flag cleared), like
+   * OSRS; re-enabling run via setRun once energy has recovered resumes it.
+   */
+  private drainRunEnergy(tiles: number): void {
+    this._runEnergy = Math.max(0, this._runEnergy - tiles * RUN_DRAIN_PER_TILE)
+    if (this._runEnergy === 0) this._running = false
+  }
+
+  /** Recover run energy for one tick, scaled by Agility (capped at max). */
+  private regenRunEnergy(): void {
+    if (this._runEnergy >= RUN_ENERGY_MAX) return
+    const rate = runEnergyRegenRate(this.skills.getLevel('agility'))
+    this._runEnergy = Math.min(RUN_ENERGY_MAX, this._runEnergy + rate)
   }
 }

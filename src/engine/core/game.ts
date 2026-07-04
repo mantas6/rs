@@ -73,8 +73,10 @@ export interface GameConfig {
  * - 1: initial format.
  * - 2: added `patches` (persistent farm-patch crop state). v1 saves migrate
  *   by adding an empty `patches: []` (a v1 world had no planted crops).
+ * - 3: added `player.runEnergy` (run-energy/Agility system). v2 saves migrate
+ *   by defaulting the player to a full energy tank (100%).
  */
-export const SAVE_FORMAT_VERSION = 2
+export const SAVE_FORMAT_VERSION = 3
 
 /**
  * Plain JSON-safe snapshot of a whole game (see Game.serialize). Nodes and

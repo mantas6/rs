@@ -1,10 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import { testMap } from '../../content/maps'
 import { Game } from '../core/game'
-import type { PlayerAction } from './player'
+import { xpForLevel } from '../systems/skills'
+import {
+  type PlayerAction,
+  RUN_DRAIN_PER_TILE,
+  RUN_ENERGY_MAX,
+  runEnergyRegenRate,
+} from './player'
 
 function makeGame(): Game {
   return new Game({ seed: 7, map: testMap })
+}
+
+/** Raw internal run energy (0..RUN_ENERGY_MAX), read via the save snapshot. */
+function rawEnergy(game: Game): number {
+  return game.player.serialize().runEnergy
+}
+
+/** Overwrite the player's run energy (and run flag) via restore, for tests. */
+function setEnergy(game: Game, energy: number, running = false): void {
+  const save = game.player.serialize()
+  save.runEnergy = energy
+  save.running = running
+  game.player.restore(save)
 }
 
 class CountdownAction implements PlayerAction {
@@ -104,6 +123,129 @@ describe('Player movement', () => {
       { x: 3, y: 2 },
       { x: 4, y: 2 },
     ])
+  })
+})
+
+describe('Run energy', () => {
+  it('new players start at full energy (100%)', () => {
+    const game = makeGame()
+    expect(rawEnergy(game)).toBe(RUN_ENERGY_MAX)
+    expect(game.player.runEnergy).toBe(100)
+  })
+
+  it('drains energy per tile actually stepped while running', () => {
+    const game = makeGame()
+    game.player.setRun(true)
+    expect(game.player.walkTo(7, 2)).toBe(true) // path of 5 tiles
+
+    game.tick() // runs 2 tiles
+    expect(rawEnergy(game)).toBe(RUN_ENERGY_MAX - 2 * RUN_DRAIN_PER_TILE)
+    game.tick() // runs 2 tiles
+    expect(rawEnergy(game)).toBe(RUN_ENERGY_MAX - 4 * RUN_DRAIN_PER_TILE)
+    game.tick() // final odd tile: 1 step
+    expect(rawEnergy(game)).toBe(RUN_ENERGY_MAX - 5 * RUN_DRAIN_PER_TILE)
+    expect(game.player.isMoving).toBe(false)
+  })
+
+  it('exposes energy as a whole-percent value for the UI', () => {
+    const game = makeGame()
+    setEnergy(game, 9500)
+    expect(game.player.runEnergy).toBe(95)
+  })
+
+  it('regenerates while standing still, scaled by Agility level', () => {
+    const game = makeGame()
+    setEnergy(game, 5000)
+    const rate = runEnergyRegenRate(game.player.skills.getLevel('agility'))
+    game.tick() // idle
+    expect(rawEnergy(game)).toBe(5000 + rate)
+  })
+
+  it('regenerates while walking (not running)', () => {
+    const game = makeGame()
+    setEnergy(game, 5000, false)
+    const rate = runEnergyRegenRate(game.player.skills.getLevel('agility'))
+    expect(game.player.walkTo(7, 2)).toBe(true)
+    game.tick() // walks one tile
+    expect(game.player.position).toEqual({ x: 3, y: 2 })
+    expect(rawEnergy(game)).toBe(5000 + rate)
+  })
+
+  it('does not regenerate past the maximum', () => {
+    const game = makeGame()
+    setEnergy(game, RUN_ENERGY_MAX)
+    game.tick()
+    expect(rawEnergy(game)).toBe(RUN_ENERGY_MAX)
+  })
+
+  it('regenerates faster at higher Agility levels', () => {
+    const low = makeGame()
+    setEnergy(low, 5000)
+    low.tick()
+    const lowGain = rawEnergy(low) - 5000
+
+    const high = makeGame()
+    setEnergy(high, 5000)
+    high.player.skills.addXp('agility', xpForLevel(50))
+    high.tick()
+    const highGain = rawEnergy(high) - 5000
+
+    expect(highGain).toBeGreaterThan(lowGain)
+    expect(highGain).toBe(runEnergyRegenRate(50))
+  })
+
+  it('auto-reverts to walking when energy hits 0', () => {
+    const game = makeGame()
+    // Enough for one running tick's step (the gate checks energy > 0 at the
+    // start of the tick, so this tick still runs a full 2 tiles).
+    setEnergy(game, RUN_DRAIN_PER_TILE, true)
+    expect(game.player.running).toBe(true)
+    expect(game.player.walkTo(7, 2)).toBe(true)
+
+    game.tick()
+    // Energy is spent and the run flag is cleared (OSRS behavior).
+    expect(rawEnergy(game)).toBe(0)
+    expect(game.player.running).toBe(false)
+
+    // The next tick, drained, only walks a single tile.
+    const x = game.player.x
+    game.tick()
+    expect(game.player.x - x).toBe(1)
+  })
+
+  it('cannot run again until energy has recovered, then resumes', () => {
+    const game = makeGame()
+    setEnergy(game, RUN_DRAIN_PER_TILE, true)
+    game.player.walkTo(14, 2)
+    game.tick() // drains to 0, reverts to walk
+    expect(game.player.running).toBe(false)
+    expect(rawEnergy(game)).toBe(0)
+
+    // Re-enabling run at 0 energy still only walks (1 tile/tick)...
+    game.player.setRun(true)
+    const walkX = game.player.x
+    game.tick()
+    expect(game.player.x - walkX).toBe(1)
+
+    // ...but once energy has recovered, running resumes (2 tiles/tick).
+    setEnergy(game, RUN_ENERGY_MAX, true)
+    game.player.walkTo(14, 2)
+    const runX = game.player.x
+    game.tick()
+    expect(game.player.x - runX).toBe(2)
+  })
+
+  it('is deterministic: same seed + commands => same energy', () => {
+    const run = (): number => {
+      const game = makeGame()
+      game.player.setRun(true)
+      game.player.walkTo(7, 2)
+      for (let i = 0; i < 3; i++) game.tick()
+      game.player.walkTo(2, 2)
+      for (let i = 0; i < 10; i++) game.tick()
+      return rawEnergy(game)
+    }
+    expect(run()).toBe(run())
   })
 })
 

@@ -240,6 +240,31 @@ button {
   font-weight: 600;
 }
 
+/* Run-energy indicator: a horizontal fill behind the run toggle's label,
+   showing remaining energy (0..100%) at a glance. */
+.run-toggle {
+  position: relative;
+  overflow: hidden;
+}
+
+.run-energy-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(63, 191, 74, 0.35);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.run-toggle-label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .audio-toggle {
   padding: 6px 6px;
   font-size: 11px;
