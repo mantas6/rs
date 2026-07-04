@@ -58,8 +58,8 @@ export interface PlayerAction {
   readonly targetPosition?: Readonly<Vec2> | null
 }
 
-/** Why eating an inventory item failed. */
-export type ConsumeFailReason = 'not_food'
+/** Why consuming an inventory item (eating/burying) failed. */
+export type ConsumeFailReason = 'not_food' | 'not_buryable'
 
 /**
  * JSON-safe snapshot of the player (see Player.serialize). The movement
@@ -83,6 +83,8 @@ declare module '../core/eventBus' {
     itemEaten: { itemId: string; healed: number; hpAfter: number }
     /** Emitted when the player drops an inventory stack on the ground. */
     itemDropped: { itemId: string; quantity: number; x: number; y: number }
+    /** Emitted when the player buries bones (the bone is already consumed). */
+    bonesBuried: { itemId: string; xp: number }
   }
 }
 
@@ -159,6 +161,27 @@ export class Player {
     const healed = Math.min(def.healAmount, Math.max(0, base - current))
     if (healed > 0) this.skills.boost('hitpoints', healed)
     this.events.emit('itemEaten', { itemId: def.id, healed, hpAfter: current + healed })
+    return true
+  }
+
+  /**
+   * Bury one bone from an inventory slot (instant; no walking and the
+   * current action is kept). Consumes exactly one item and grants the
+   * item's `buryXp` in Prayer. Emits `bonesBuried` on success,
+   * `actionFailed: not_buryable` for items without `buryXp`, and returns
+   * false for an empty slot without emitting.
+   */
+  bury(slotIndex: number): boolean {
+    const stack = this.inventory.get(slotIndex)
+    if (stack === null) return false
+    const def = getItemDef(stack.itemId)
+    if (def.buryXp === undefined) {
+      this.events.emit('actionFailed', { reason: 'not_buryable' })
+      return false
+    }
+    this.inventory.removeSlot(slotIndex, 1)
+    this.skills.addXp('prayer', def.buryXp)
+    this.events.emit('bonesBuried', { itemId: def.id, xp: def.buryXp })
     return true
   }
 

@@ -137,10 +137,20 @@ export const skillGuides: Record<SkillName, SkillGuideEntry> = {
   prayer: {
     skill: 'prayer',
     summary:
-      'Powered by buried bones in classic OSRS. Burying bones and activating prayers are not yet implemented.',
-    trainable: false,
-    steps: [],
-    notes: ['Monsters drop Bones, but they cannot be buried for XP yet.'],
+      'Trained by burying bones dropped by monsters. Each bone buried grants Prayer XP. Activating prayers is not yet implemented.',
+    trainable: true,
+    steps: [
+      {
+        level: 1,
+        action:
+          'Kill monsters such as chickens, cows, giant rats and goblins for Bones, then click the Bones in your inventory to bury them for 4.5 Prayer XP each.',
+        itemIds: ['bones'],
+      },
+    ],
+    notes: [
+      'Bones are dropped by most monsters and buried straight from your inventory — no altar needed yet.',
+      'Activating prayers to boost combat is not yet implemented in this version.',
+    ],
   },
   woodcutting: {
     skill: 'woodcutting',

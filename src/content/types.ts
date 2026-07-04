@@ -113,6 +113,8 @@ export interface ItemDef {
   equipment?: EquipmentDef
   /** Hitpoints restored when eaten (food items only). */
   healAmount?: number
+  /** Prayer XP granted when buried (present only on buryable bones). */
+  buryXp?: number
   /** Present when the item is a gathering tool (axe/pickaxe/net). */
   tool?: ToolDef
 }

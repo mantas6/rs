@@ -29,6 +29,7 @@ export function connectGameSounds(game: Game, audio: AudioManager): () => void {
     game.events.on('fireLit', () => audio.play('fire')),
     game.events.on('itemCooked', () => audio.play('cook')),
     game.events.on('itemDropped', () => audio.play('drop')),
+    game.events.on('bonesBuried', () => audio.play('drop')),
     game.events.on('groundItemRemoved', ({ reason }) => {
       if (reason === 'picked_up') audio.play('pickup')
     }),

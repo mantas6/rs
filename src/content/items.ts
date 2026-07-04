@@ -280,6 +280,7 @@ export const items: Record<string, ItemDef> = {
     examine: 'Bones are for burying!',
     stackable: false,
     value: 1,
+    buryXp: 4.5,
   },
   cowhide: {
     id: 'cowhide',

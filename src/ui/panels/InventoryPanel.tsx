@@ -61,6 +61,7 @@ export function InventoryPanel({
     else if (def.healAmount !== undefined) game.player.eat(index)
     else if (firemakingDefs[slot.itemId]) game.player.lightFire(slot.itemId)
     else if (cookingRecipes[slot.itemId]) cook(slot.itemId)
+    else if (def.buryXp !== undefined) game.player.bury(index)
     else store.push(def.examine)
     refresh()
   }
@@ -81,6 +82,9 @@ export function InventoryPanel({
     }
     if (cookingRecipes[slot.itemId]) {
       options.push({ label: `Cook ${def.name}`, onClick: () => cook(slot.itemId) })
+    }
+    if (def.buryXp !== undefined) {
+      options.push({ label: `Bury ${def.name}`, onClick: () => game.player.bury(index) })
     }
     options.push({ label: `Drop ${def.name}`, onClick: () => game.player.drop(index) })
     options.push({ label: `Examine ${def.name}`, onClick: () => store.push(def.examine) })

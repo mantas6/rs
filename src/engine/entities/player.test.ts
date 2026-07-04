@@ -216,6 +216,44 @@ describe('Player.drop', () => {
   })
 })
 
+describe('Player.bury', () => {
+  it('consumes one bone and grants prayer xp, emitting bonesBuried', () => {
+    const game = makeGame()
+    game.player.inventory.add('bones', 2)
+    const buried: Array<{ itemId: string; xp: number }> = []
+    game.events.on('bonesBuried', (e) => buried.push(e))
+
+    expect(game.player.bury(0)).toBe(true)
+    expect(game.player.inventory.count('bones')).toBe(1)
+    expect(game.player.skills.getXp('prayer')).toBe(4.5)
+    expect(buried).toEqual([{ itemId: 'bones', xp: 4.5 }])
+  })
+
+  it('emits actionFailed: not_buryable for non-buryable items and keeps them', () => {
+    const game = makeGame()
+    game.player.inventory.add('tinderbox')
+    const failures: string[] = []
+    game.events.on('actionFailed', (e) => failures.push(e.reason))
+
+    expect(game.player.bury(0)).toBe(false)
+    expect(failures).toEqual(['not_buryable'])
+    expect(game.player.inventory.count('tinderbox')).toBe(1)
+    expect(game.player.skills.getXp('prayer')).toBe(0)
+  })
+
+  it('returns false for an empty slot without emitting', () => {
+    const game = makeGame()
+    const failures: string[] = []
+    const buried: unknown[] = []
+    game.events.on('actionFailed', (e) => failures.push(e.reason))
+    game.events.on('bonesBuried', (e) => buried.push(e))
+
+    expect(game.player.bury(0)).toBe(false)
+    expect(failures).toEqual([])
+    expect(buried).toEqual([])
+  })
+})
+
 describe('PlayerAction UI descriptors (kind + targetPosition)', () => {
   it('exposes the gather skill and node tile while gathering', () => {
     const game = new Game({
