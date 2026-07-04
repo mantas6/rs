@@ -18,6 +18,8 @@ export const SFX_NAMES = [
   'drop',
   'bank',
   'click',
+  'smith',
+  'equip',
 ] as const
 
 export type SfxName = (typeof SFX_NAMES)[number]

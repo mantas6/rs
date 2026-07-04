@@ -159,6 +159,26 @@ describe('gathering: success, xp and events', () => {
     expect(gathered).toEqual([{ nodeId: 'tree', itemId: 'logs', xp: 25 }])
     expect(game.player.skills.getXp('woodcutting')).toBe(25)
   })
+
+  it('emits gatherSwing on every swing, including unsuccessful ones', () => {
+    const game = makeGame([FISHING_SPOT])
+    game.player.inventory.add('small_fishing_net')
+    const swings: string[] = []
+    let catches = 0
+    game.events.on('gatherSwing', ({ nodeId, skill }) => {
+      expect(skill).toBe('fishing')
+      swings.push(nodeId)
+    })
+    game.events.on('resourceGathered', () => catches++)
+
+    game.player.gather(nodeAt(game, FISHING_SPOT.x, FISHING_SPOT.y))
+    for (let i = 0; i < 30; i++) game.tick()
+
+    // One swing per gather tick — more swings than actual catches, proving
+    // the sound-driving event fires even when no fish is caught.
+    expect(swings.length).toBeGreaterThan(catches)
+    expect(swings.every((id) => id === 'fishing_spot_net')).toBe(true)
+  })
 })
 
 describe('gathering: depletion and respawn', () => {

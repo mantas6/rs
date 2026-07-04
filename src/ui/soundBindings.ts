@@ -1,7 +1,6 @@
 // Engine-event-to-sound wiring, mirroring messages.ts: subscribe to the
 // EventBus and translate gameplay events into AudioManager.play() calls.
 import type { Game } from '../engine'
-import { getResourceNodeDef } from '../engine'
 import type { AudioManager, SfxName } from './audio'
 
 const GATHER_SFX: Record<string, SfxName> = {
@@ -16,8 +15,10 @@ const GATHER_SFX: Record<string, SfxName> = {
  */
 export function connectGameSounds(game: Game, audio: AudioManager): () => void {
   const unsubscribes = [
-    game.events.on('resourceGathered', ({ nodeId }) => {
-      audio.play(GATHER_SFX[getResourceNodeDef(nodeId).skill] ?? 'click')
+    // Tool sound plays on every swing (not just successful gathers) so that
+    // chopping/mining/fishing is audible while working, like OSRS.
+    game.events.on('gatherSwing', ({ skill }) => {
+      audio.play(GATHER_SFX[skill] ?? 'click')
     }),
     game.events.on('damageDealt', ({ damage }) => {
       audio.play(damage > 0 ? 'hit' : 'miss')
@@ -33,11 +34,14 @@ export function connectGameSounds(game: Game, audio: AudioManager): () => void {
     game.events.on('groundItemRemoved', ({ reason }) => {
       if (reason === 'picked_up') audio.play('pickup')
     }),
+    game.events.on('oreSmelted', () => audio.play('smith')),
+    game.events.on('equipmentChanged', () => audio.play('equip')),
     game.events.on('bankOpened', () => audio.play('bank')),
     game.events.on('bankClosed', () => audio.play('bank')),
     game.events.on('shopOpened', () => audio.play('bank')),
     game.events.on('shopClosed', () => audio.play('bank')),
     game.events.on('itemBought', () => audio.play('pickup')),
+    game.events.on('itemSold', () => audio.play('pickup')),
   ]
   return () => {
     for (const unsubscribe of unsubscribes) unsubscribe()

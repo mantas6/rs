@@ -306,6 +306,24 @@ def gen_click() -> list[float]:
     return fade_edges(normalize(buf, 0.5), ms=2.0)
 
 
+def gen_smith() -> list[float]:
+    """Furnace/anvil clang: bright inharmonic metal ring + hot hiss bed."""
+    buf = zeros(0.32)
+    for f, a, d in ((1120, 0.5, 16.0), (1680, 0.32, 20.0), (2510, 0.22, 24.0)):
+        add_pluck(buf, 0, 0.3, f, a, decay=d, attack=0.001)
+    mix_into(buf, noise_burst(0.04, seed=122, decay=80.0, highpass=True, lowpass=0.5), gain=0.45)
+    mix_into(buf, noise_burst(0.28, seed=123, decay=6.0, attack=0.02, lowpass=0.15), gain=0.25)
+    return fade_edges(normalize(buf, 0.85))
+
+
+def gen_equip() -> list[float]:
+    """Gearing up: short cloth/leather rustle with a soft metallic tap."""
+    buf = zeros(0.18)
+    mix_into(buf, noise_burst(0.12, seed=133, decay=28.0, attack=0.006, lowpass=0.35, highpass=True), gain=0.7)
+    add_pluck(buf, 0.02, 0.12, 620, 0.35, osc=triangle, decay=24.0, freq_end=520)
+    return fade_edges(normalize(buf, 0.6))
+
+
 # ------------------------------------------------------------------ music
 
 # 8 bars x 3 s = 24 s loop, I-vi-IV-V twice in C major.
@@ -366,6 +384,8 @@ GENERATORS = {
     "drop.wav": gen_drop,
     "bank.wav": gen_bank,
     "click.wav": gen_click,
+    "smith.wav": gen_smith,
+    "equip.wav": gen_equip,
     "music_main.wav": gen_music,
 }
 

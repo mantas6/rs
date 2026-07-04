@@ -35,6 +35,12 @@ declare module '../core/eventBus' {
   interface GameEvents {
     /** Emitted when starting or continuing an action fails validation. */
     actionFailed: { reason: ActionFailReason }
+    /**
+     * Emitted on every gather tick/swing (before the success roll), whether
+     * or not it yields an item. Drives the per-swing tool sound (chop/mine/
+     * splash) so gathering is audible even on unsuccessful swings.
+     */
+    gatherSwing: { nodeId: string; skill: string }
     /** Emitted on every successful gather (item + xp already granted). */
     resourceGathered: { nodeId: string; itemId: string; xp: number }
     /** Emitted when a node depletes; it respawns at `respawnAtTick`. */
@@ -144,6 +150,9 @@ export class GatherAction implements PlayerAction {
       events.emit('actionFailed', { reason })
       return false
     }
+
+    // A swing happens this tick regardless of whether it yields an item.
+    events.emit('gatherSwing', { nodeId: def.id, skill: def.skill })
 
     const level = player.skills.getCurrentLevel(def.skill)
     const tool = def.requiredToolKind ? findBestTool(player, def.requiredToolKind, level) : null
