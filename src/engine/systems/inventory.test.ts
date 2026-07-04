@@ -134,6 +134,44 @@ describe('Inventory.removeSlot', () => {
   })
 })
 
+describe('Inventory.swap', () => {
+  it('swaps two filled slots', () => {
+    const { inventory } = makeInventory()
+    inventory.add('logs', 1)
+    inventory.add('bones', 1)
+    inventory.swap(0, 1)
+    expect(inventory.get(0)).toEqual({ itemId: 'bones', quantity: 1 })
+    expect(inventory.get(1)).toEqual({ itemId: 'logs', quantity: 1 })
+  })
+
+  it('moves an item into an empty slot', () => {
+    const { inventory } = makeInventory()
+    inventory.add('logs', 1)
+    inventory.swap(0, 5)
+    expect(inventory.get(0)).toBeNull()
+    expect(inventory.get(5)).toEqual({ itemId: 'logs', quantity: 1 })
+  })
+
+  it('validates indices', () => {
+    const { inventory } = makeInventory()
+    expect(() => inventory.swap(-1, 0)).toThrow()
+    expect(() => inventory.swap(0, INVENTORY_SIZE)).toThrow()
+    expect(() => inventory.swap(0, 1.5)).toThrow()
+  })
+
+  it('emits inventoryChanged only when contents actually move', () => {
+    const { events, inventory } = makeInventory()
+    inventory.add('logs', 1)
+    let calls = 0
+    events.on('inventoryChanged', () => calls++)
+    inventory.swap(0, 0) // same slot
+    inventory.swap(5, 6) // both empty
+    expect(calls).toBe(0)
+    inventory.swap(0, 1) // moves the log
+    expect(calls).toBe(1)
+  })
+})
+
 describe('Inventory.clear', () => {
   it('empties every slot', () => {
     const { inventory } = makeInventory()

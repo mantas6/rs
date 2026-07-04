@@ -139,6 +139,27 @@ export class Inventory {
     return { itemId: slot.itemId, quantity: taken }
   }
 
+  /**
+   * Swap the contents of two slots (used for drag-to-rearrange). Either slot
+   * may be empty, letting an item be dragged into a free slot. A no-op when
+   * both indices are equal or both slots are empty; otherwise emits
+   * `inventoryChanged`. Throws on out-of-range indices.
+   */
+  swap(a: number, b: number): void {
+    if (!Number.isInteger(a) || a < 0 || a >= INVENTORY_SIZE) {
+      throw new Error(`Inventory.swap: slot must be an integer in [0, ${INVENTORY_SIZE}), got ${a}`)
+    }
+    if (!Number.isInteger(b) || b < 0 || b >= INVENTORY_SIZE) {
+      throw new Error(`Inventory.swap: slot must be an integer in [0, ${INVENTORY_SIZE}), got ${b}`)
+    }
+    if (a === b) return
+    if (this._slots[a] === null && this._slots[b] === null) return
+    const tmp = this._slots[a]
+    this._slots[a] = this._slots[b]
+    this._slots[b] = tmp
+    this.emitChanged()
+  }
+
   clear(): void {
     let changed = false
     for (let i = 0; i < INVENTORY_SIZE; i++) {

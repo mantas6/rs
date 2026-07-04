@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { MouseEvent } from 'react'
+import { useRef, useState } from 'react'
+import type { DragEvent, MouseEvent } from 'react'
 import { cookingRecipes, firemakingDefs, smeltingRecipes } from '../../content/recipes'
 import type { CookingSource, Game, SmeltingSource } from '../../engine'
 import { chebyshev, getItemDef } from '../../engine'
@@ -62,7 +62,13 @@ export function InventoryPanel({
   refresh: () => void
 }) {
   const [menu, setMenu] = useState<MenuState | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
   const slots = game.player.inventory.slots
+
+  // Slot the drag started from, and a guard so the click fired at the end of a
+  // drag gesture does not also run the item's default action.
+  const dragFrom = useRef<number | null>(null)
+  const didDrag = useRef(false)
 
   function equip(index: number): void {
     if (!game.player.equip(index)) {
@@ -95,6 +101,48 @@ export function InventoryPanel({
     else if (def.buryXp !== undefined) game.player.bury(index)
     else store.push(def.examine)
     refresh()
+  }
+
+  function handleClick(index: number): void {
+    // A drag gesture ends with a click on some browsers; ignore it so
+    // rearranging items never triggers the item's default action.
+    if (didDrag.current) {
+      didDrag.current = false
+      return
+    }
+    defaultAction(index)
+  }
+
+  function onDragStart(e: DragEvent, index: number): void {
+    dragFrom.current = index
+    didDrag.current = false
+    setMenu(null)
+    e.dataTransfer.effectAllowed = 'move'
+    // Firefox requires data to be set for a drag to start.
+    e.dataTransfer.setData('text/plain', String(index))
+  }
+
+  function onDragOver(e: DragEvent, index: number): void {
+    if (dragFrom.current === null) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOver !== index) setDragOver(index)
+  }
+
+  function onDrop(e: DragEvent, index: number): void {
+    e.preventDefault()
+    const from = dragFrom.current
+    dragFrom.current = null
+    setDragOver(null)
+    if (from === null || from === index) return
+    didDrag.current = true
+    game.player.inventory.swap(from, index)
+    refresh()
+  }
+
+  function onDragEnd(): void {
+    dragFrom.current = null
+    setDragOver(null)
   }
 
   function openMenu(e: MouseEvent, index: number): void {
@@ -142,16 +190,27 @@ export function InventoryPanel({
             <button
               type="button"
               key={index}
-              className="item-slot filled"
+              className={`item-slot filled${dragOver === index ? ' drag-over' : ''}`}
               title={getItemDef(slot.itemId).name}
-              onClick={() => defaultAction(index)}
+              draggable
+              onClick={() => handleClick(index)}
               onContextMenu={(e) => openMenu(e, index)}
+              onDragStart={(e) => onDragStart(e, index)}
+              onDragOver={(e) => onDragOver(e, index)}
+              onDrop={(e) => onDrop(e, index)}
+              onDragEnd={onDragEnd}
             >
               <ItemIcon itemId={slot.itemId} />
               {slot.quantity > 1 && <span className="item-slot-qty">{slot.quantity}</span>}
             </button>
           ) : (
-            <div key={index} className="item-slot" onContextMenu={(e) => e.preventDefault()} />
+            <div
+              key={index}
+              className={`item-slot${dragOver === index ? ' drag-over' : ''}`}
+              onContextMenu={(e) => e.preventDefault()}
+              onDragOver={(e) => onDragOver(e, index)}
+              onDrop={(e) => onDrop(e, index)}
+            />
           ),
         )}
       </div>

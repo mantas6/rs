@@ -281,6 +281,15 @@ button {
   justify-content: center;
 }
 
+.item-slot.filled {
+  cursor: grab;
+}
+
+.item-slot.drag-over {
+  border-color: #fff44f;
+  box-shadow: inset 0 0 0 1px #fff44f;
+}
+
 .item-slot.filled .icon {
   width: 76%;
   height: 76%;
